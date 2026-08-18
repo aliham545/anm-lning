@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aktivitetsanmälan – Allaktivitetshuset</title>
+<link rel="icon" type="image/png" href="assets/logo-a.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <img src="assets/logo-full.png" alt="Allaktivitetshuset Holma/Kroksbäck" class="logo-full" id="logoFull">
+  <div class="logo-text-fallback" id="logoTextFallback">
+    <img src="assets/logo-a.png" alt="" class="logo-mark-small">
+    <span class="logo-text-name">ALLAKTIVITETSHUSET</span>
+    <span class="logo-text-branch" id="logoBranchName"></span>
+  </div>
+  <p id="headerSub">Anmäl dig till en aktivitet</p>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tabbtn active" data-tab="signup">Anmäl dig</button>
+    <button class="tabbtn" data-tab="admin">Admin</button>
+  </div>
+
+  <div class="branch-switch" id="branchSwitch"></div>
+
+  <div id="view-signup" class="view active">
+    <div id="branchGate" class="card branch-gate">
+      <h2>Välj din avdelning</h2>
+      <p class="sub">Välj vilken fritidsgård du vill anmäla dig till, så visar vi rätt aktiviteter.</p>
+      <div class="gate-btns" id="gateBtns"></div>
+    </div>
+
+    <div id="signupContent" style="display:none;">
+      <div class="signup-branch-bar">
+        <span id="signupBranchLabel"></span>
+        <button class="ghostlink" id="changeBranchBtn">Byt avdelning</button>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <h2>Anmälan</h2>
+          <p class="sub">Fyll i dina uppgifter. Välj årskurs, då visas de aktiviteter som passar dig.</p>
+          <form id="signupForm">
+            <label for="s-name">Namn</label>
+            <input type="text" id="s-name" placeholder="Förnamn Efternamn" autocomplete="off">
+            <label for="s-phone">Telefonnummer</label>
+            <input type="tel" id="s-phone" placeholder="07X-XXX XX XX" autocomplete="off">
+            <label for="s-grade">Årskurs</label>
+            <select id="s-grade">
+              <option value="">Välj årskurs</option>
+              <option value="1">Årskurs 1</option>
+              <option value="2">Årskurs 2</option>
+              <option value="3">Årskurs 3</option>
+              <option value="4">Årskurs 4</option>
+              <option value="5">Årskurs 5</option>
+              <option value="6">Årskurs 6</option>
+              <option value="7">Årskurs 7</option>
+              <option value="8">Årskurs 8</option>
+              <option value="9">Årskurs 9</option>
+            </select>
+            <label for="s-class">Klass</label>
+            <input type="text" id="s-class" placeholder="t.ex. 5B" autocomplete="off">
+            <label for="s-activity">Önskad aktivitet</label>
+            <select id="s-activity" disabled>
+              <option value="">Välj årskurs först</option>
+            </select>
+            <p class="err" id="s-err"></p>
+            <button type="submit" class="btn">Skicka ansökan</button>
+          </form>
+          <div id="ticketHolder"></div>
+        </div>
+        <div class="card">
+          <h2>Aktiviteter</h2>
+          <p class="sub" id="actListSub">Så här ser det ut just nu.</p>
+          <div id="actList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-admin" class="view">
+    <div id="adminLogin" class="card login-box">
+      <img src="assets/logo-a.png" alt="" class="login-mark" aria-hidden="true">
+      <h2>Adminläge</h2>
+      <p class="sub" id="adminLoginSub">Ange koden för att hantera aktiviteter och anmälningar.</p>
+      <label for="pw">Kod</label>
+      <input type="password" id="pw" placeholder="Kod">
+      <p class="err" id="pw-err"></p>
+      <button class="btn" id="pwBtn">Logga in</button>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div class="adm-topbar">
+        <h2 style="margin:0;">Adminpanel <span class="muted" id="adminBranchLabel"></span></h2>
+        <button class="logout" id="logoutBtn">Logga ut</button>
+      </div>
+
+      <div class="card adm-section">
+        <h3 class="sectionTitle">Lägg till aktivitet</h3>
+        <p class="sub">Skapa en ny aktivitet och koppla den till en årskursgrupp.</p>
+        <div class="toolbar">
+          <div class="field">
+            <label>Namn</label>
+            <input type="text" id="newActName" placeholder="t.ex. Pyssel">
+          </div>
+          <div class="field">
+            <label>Årskursgrupp</label>
+            <select id="newActStadium">
+              <option value="lag">Lågstadiet (1–3)</option>
+              <option value="mellan">Mellanstadiet (4–6)</option>
+              <option value="hog">Högstadiet (7–9)</option>
+            </select>
+          </div>
+          <div class="field maxfield">
+            <label>Max platser</label>
+            <input type="number" id="newActMax" placeholder="valfritt" min="1">
+          </div>
+          <button class="btn small" id="addActBtn">Lägg till</button>
+        </div>
+        <p class="err" id="newAct-err"></p>
+      </div>
+
+      <div class="card adm-section" id="pendingWrap">
+        <h3 class="sectionTitle">Väntande ansökningar</h3>
+        <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet.</p>
+        <div id="pendingApps"></div>
+      </div>
+
+      <div class="adm-section" id="adminActivities"></div>
+
+      <div class="card adm-section" id="deltagarlistaWrap">
+        <div class="adm-topbar" style="margin-bottom:4px;">
+          <h3 class="sectionTitle" style="margin:0;">Deltagare &amp; kontaktuppgifter</h3>
+          <button class="rowbtn" id="clearRegsBtn" style="margin-left:auto;">Rensa alla anmälningar</button>
+        </div>
+        <p class="sub">Alla anmälda, uppdelade per årskursgrupp. Sök eller ring direkt via telefonnumret.</p>
+        <input type="text" id="contactSearch" placeholder="Sök på namn eller klass...">
+        <div id="deltagarlista"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>
