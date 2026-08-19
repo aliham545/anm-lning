@@ -19,11 +19,9 @@ const STADIUMS = [
 const activitiesCol = collection(db, "activities");
 const registrationsCol = collection(db, "registrations");
 
-// Data hålls per avdelning i minnet, hålls i synk med Firestore via onSnapshot.
 let activitiesByBranch = { holma: [], hermodsdal: [] };
 let registrationsByBranch = { holma: [], hermodsdal: [] };
 
-// currentBranch styr ENDAST vilken avdelning admin tittar på/hanterar.
 let currentBranch = localStorage.getItem(CURRENT_BRANCH_KEY) || BRANCHES[0].id;
 if(!BRANCHES.some(b => b.id === currentBranch)) currentBranch = BRANCHES[0].id;
 
@@ -33,10 +31,6 @@ let signupBranch = null;
 
 function branchInfo(id){
   return BRANCHES.find(b => b.id === id) || BRANCHES[0];
-}
-
-function uid(prefix){
-  return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 }
 
 function stadiumForGrade(grade){
@@ -49,7 +43,7 @@ function stadiumForGrade(grade){
 
 function escapeHtml(s){
   const d = document.createElement("div");
-  d.textContent = s;
+  d.textContent = s == null ? "" : s;
   return d.innerHTML;
 }
 
@@ -57,6 +51,17 @@ function phoneLink(phone){
   if(!phone) return '';
   const dial = phone.replace(/[^0-9+]/g, "");
   return `<a href="tel:${dial}" class="phone-link">${escapeHtml(phone)}</a>`;
+}
+
+function activityLabelHtml(a){
+  return escapeHtml(a.name) + (a.schedule ? ` <span class="act-time">· ${escapeHtml(a.schedule)}</span>` : '');
+}
+
+function placedIds(r){
+  return Array.isArray(r.placedActivityIds) ? r.placedActivityIds : [];
+}
+function wishIds(r){
+  return Array.isArray(r.wishActivityIds) ? r.wishActivityIds : [];
 }
 
 /* ---------- Live-synk mot Firestore ---------- */
@@ -85,7 +90,7 @@ onSnapshot(registrationsCol, snap => {
 
 function rerenderAll(){
   if(signupBranch){
-    renderActivitySelect();
+    renderActivityChecks();
     renderActList();
   }
   if(isAdmin) renderAdmin();
@@ -95,7 +100,7 @@ function acts(branchId){ return activitiesByBranch[branchId] || []; }
 function regs(branchId){ return registrationsByBranch[branchId] || []; }
 
 function placedCountFor(branchId, actId){
-  return regs(branchId).filter(r => r.placedActivityId === actId).length;
+  return regs(branchId).filter(r => placedIds(r).includes(actId)).length;
 }
 function activityName(branchId, id){
   const a = acts(branchId).find(a => a.id === id);
@@ -153,7 +158,7 @@ function selectSignupBranch(branchId){
   document.getElementById("signupContent").style.display = "block";
   document.getElementById("signupBranchLabel").textContent = branchInfo(branchId).name;
   document.getElementById("actListSub").textContent = "Så här ser det ut just nu hos " + branchInfo(branchId).name + ".";
-  renderActivitySelect();
+  renderActivityChecks();
   renderActList();
 }
 
@@ -165,36 +170,34 @@ document.getElementById("changeBranchBtn").addEventListener("click", () => {
   document.getElementById("branchGate").style.display = "block";
 });
 
-function currentSignupContext(){
+function renderActivityChecks(){
+  const wrap = document.getElementById("s-activities");
   const grade = document.getElementById("s-grade").value;
-  return { branch: signupBranch, stadium: stadiumForGrade(grade) };
-}
-
-function renderActivitySelect(){
-  const sel = document.getElementById("s-activity");
-  const { branch, stadium } = currentSignupContext();
-  sel.innerHTML = "";
-  if(!branch || !stadium){
-    sel.disabled = true;
-    sel.innerHTML = '<option value="">Välj årskurs först</option>';
+  const stadium = stadiumForGrade(grade);
+  wrap.innerHTML = "";
+  if(!signupBranch || !stadium){
+    wrap.innerHTML = '<p class="muted">Välj årskurs först</p>';
     return;
   }
-  const options = activitiesForStadium(branch, stadium);
+  const options = activitiesForStadium(signupBranch, stadium);
   if(!options.length){
-    sel.disabled = true;
-    sel.innerHTML = '<option value="">Inga aktiviteter för den årskursen än</option>';
+    wrap.innerHTML = '<p class="muted">Inga aktiviteter för den årskursen än</p>';
     return;
   }
-  sel.disabled = false;
   options.forEach(a => {
-    const opt = document.createElement("option");
-    opt.value = a.id;
-    opt.textContent = a.name;
-    sel.appendChild(opt);
+    const count = placedCountFor(signupBranch, a.id);
+    const full = a.maxSpots && count >= a.maxSpots;
+    const label = document.createElement("label");
+    label.className = "activity-check" + (full ? " disabled" : "");
+    label.innerHTML = `
+      <input type="checkbox" value="${a.id}" ${full ? "disabled" : ""}>
+      <span>${activityLabelHtml(a)}</span>
+      <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>`;
+    wrap.appendChild(label);
   });
 }
 
-document.getElementById("s-grade").addEventListener("change", renderActivitySelect);
+document.getElementById("s-grade").addEventListener("change", renderActivityChecks);
 
 function renderActList(){
   const wrap = document.getElementById("actList");
@@ -220,7 +223,7 @@ function renderActList(){
       div.className = "act-card";
       div.innerHTML = `
         <div class="top">
-          <span class="name">${escapeHtml(a.name)}</span>
+          <span class="name">${activityLabelHtml(a)}</span>
           <span class="badge ${full ? 'full' : 'ok'}">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : (count + ' platser tagna')}</span>
         </div>`;
       list.appendChild(div);
@@ -230,7 +233,7 @@ function renderActList(){
   });
 }
 
-function showTicket(branchName, name, phone, klass, grade, wishName){
+function showTicket(branchName, data, wishNames){
   const holder = document.getElementById("ticketHolder");
   const now = new Date();
   const dateStr = now.toLocaleDateString('sv-SE', { day:'numeric', month:'long' });
@@ -238,13 +241,13 @@ function showTicket(branchName, name, phone, klass, grade, wishName){
     <div class="ticket">
       <img src="assets/logo-a.png" alt="" class="mark" aria-hidden="true">
       <p class="ticket-title">Ansökan mottagen · ${escapeHtml(branchName)}</p>
-      <h3>${escapeHtml(wishName)}</h3>
-      <div class="row"><span>Namn</span><b>${escapeHtml(name)}</b></div>
-      <div class="row"><span>Telefon</span><b>${escapeHtml(phone)}</b></div>
-      <div class="row"><span>Årskurs</span><b>${escapeHtml(grade)}</b></div>
-      <div class="row"><span>Klass</span><b>${escapeHtml(klass)}</b></div>
+      <h3>${escapeHtml(data.childName)}</h3>
+      <div class="row"><span>Årskurs</span><b>${escapeHtml(data.grade)}</b></div>
+      <div class="row"><span>Klass</span><b>${escapeHtml(data.klass)}</b></div>
+      <div class="row"><span>Önskade aktiviteter</span><b>${escapeHtml(wishNames.join(', '))}</b></div>
+      <div class="row"><span>Förälder</span><b>${escapeHtml(data.parentName)}</b></div>
       <div class="row"><span>Datum</span><b>${dateStr}</b></div>
-      <p class="ticket-note">Personalen placerar dig i en aktivitet inom kort.</p>
+      <p class="ticket-note">Personalen placerar barnet i aktivitet(er) inom kort.</p>
       <svg class="scissor" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle>
         <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
@@ -256,30 +259,36 @@ function showTicket(branchName, name, phone, klass, grade, wishName){
 
 document.getElementById("signupForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const name = document.getElementById("s-name").value.trim();
-  const phone = document.getElementById("s-phone").value.trim();
-  const branch = signupBranch;
-  const grade = document.getElementById("s-grade").value;
-  const klass = document.getElementById("s-class").value.trim();
-  const activityId = document.getElementById("s-activity").value;
   const err = document.getElementById("s-err");
   err.style.display = "none";
 
-  if(!name || !phone || !branch || !grade || !klass || !activityId){
-    err.textContent = "Fyll i namn, telefonnummer, årskurs, klass och önskad aktivitet.";
+  const childName = document.getElementById("s-name").value.trim();
+  const genderInput = document.querySelector('input[name="gender"]:checked');
+  const gender = genderInput ? genderInput.value : "";
+  const grade = document.getElementById("s-grade").value;
+  const klass = document.getElementById("s-class").value.trim();
+  const attendsFritids = document.getElementById("s-fritids").checked;
+  const childPhone = document.getElementById("s-childphone").value.trim();
+  const parentName = document.getElementById("s-parentname").value.trim();
+  const parentPhone = document.getElementById("s-parentphone").value.trim();
+  const wishActivityIds = Array.from(document.querySelectorAll('#s-activities input[type="checkbox"]:checked')).map(c => c.value);
+
+  if(!childName || !gender || !grade || !klass || !parentName || !parentPhone || !wishActivityIds.length){
+    err.textContent = "Fyll i barnets namn, kön, årskurs, klass, förälders namn och telefonnummer, och välj minst en aktivitet.";
     err.style.display = "block";
     return;
   }
-  const act = acts(branch).find(a => a.id === activityId);
-  if(!act){
-    err.textContent = "Aktiviteten hittades inte, ladda om sidan.";
-    err.style.display = "block";
-    return;
-  }
+
+  const data = { childName, gender, grade, klass, attendsFritids, childPhone, parentName, parentPhone };
+  const wishNames = wishActivityIds.map(id => activityName(signupBranch, id));
+
   try{
     await addDoc(registrationsCol, {
-      branch, name, phone, klass, grade, activityId,
-      placedActivityId: null, ts: Date.now()
+      branch: signupBranch,
+      ...data,
+      wishActivityIds,
+      placedActivityIds: [],
+      ts: Date.now()
     });
   }catch(e){
     err.textContent = "Kunde inte skicka ansökan, kolla internetanslutningen och försök igen.";
@@ -287,9 +296,9 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
     console.error(e);
     return;
   }
-  showTicket(branchInfo(branch).name, name, phone, klass, grade, act.name);
+  showTicket(branchInfo(signupBranch).name, data, wishNames);
   document.getElementById("signupForm").reset();
-  renderActivitySelect();
+  renderActivityChecks();
 });
 
 document.querySelectorAll(".tabbtn").forEach(btn => {
@@ -340,6 +349,7 @@ document.getElementById("clearRegsBtn").addEventListener("click", async () => {
 
 document.getElementById("addActBtn").addEventListener("click", async () => {
   const nameInp = document.getElementById("newActName");
+  const scheduleInp = document.getElementById("newActSchedule");
   const maxInp = document.getElementById("newActMax");
   const stadiumInp = document.getElementById("newActStadium");
   const err = document.getElementById("newAct-err");
@@ -354,6 +364,7 @@ document.getElementById("addActBtn").addEventListener("click", async () => {
   try{
     await addDoc(activitiesCol, {
       branch: currentBranch, name,
+      schedule: scheduleInp.value.trim(),
       maxSpots: (maxSpots && maxSpots > 0) ? maxSpots : null,
       stadium: stadiumInp.value
     });
@@ -364,23 +375,16 @@ document.getElementById("addActBtn").addEventListener("click", async () => {
     return;
   }
   nameInp.value = "";
+  scheduleInp.value = "";
   maxInp.value = "";
 });
-
-function activityOptionsHtml(branchId, selectedId, stadium){
-  return activitiesForStadium(branchId, stadium).map(a => {
-    const count = placedCountFor(branchId, a.id);
-    const full = a.maxSpots && count >= a.maxSpots && a.id !== selectedId;
-    return `<option value="${a.id}" ${a.id === selectedId ? "selected" : ""}>${escapeHtml(a.name)}${full ? " (fullt)" : ""}</option>`;
-  }).join("");
-}
 
 /* ---------- Väntande ansökningar ---------- */
 
 function renderPending(){
   const wrap = document.getElementById("pendingApps");
   const pending = regs(currentBranch)
-    .filter(r => !r.placedActivityId)
+    .filter(r => placedIds(r).length === 0)
     .sort((a,b) => a.ts - b.ts);
 
   if(!pending.length){
@@ -388,50 +392,60 @@ function renderPending(){
     return;
   }
 
-  wrap.innerHTML = `
-    <div class="table-scroll">
-    <table>
-      <thead><tr><th>Namn</th><th>Telefon</th><th>Åk</th><th>Klass</th><th>Önskemål</th><th>Placera i</th><th></th></tr></thead>
-      <tbody>
-        ${pending.map(r => {
-          const stadium = stadiumForGrade(r.grade);
+  wrap.innerHTML = pending.map(r => {
+    const stadium = stadiumForGrade(r.grade);
+    const options = activitiesForStadium(currentBranch, stadium);
+    const wishSet = new Set(wishIds(r));
+    const checksHtml = options.length
+      ? options.map(a => {
+          const count = placedCountFor(currentBranch, a.id);
+          const full = a.maxSpots && count >= a.maxSpots;
           return `
-          <tr data-reg="${r.id}">
-            <td>${escapeHtml(r.name)}</td>
-            <td>${phoneLink(r.phone)}</td>
-            <td>${escapeHtml(r.grade)}</td>
-            <td>${escapeHtml(r.klass)}</td>
-            <td class="muted">${escapeHtml(activityName(currentBranch, r.activityId))}</td>
-            <td>
-              <select class="place-select">${activityOptionsHtml(currentBranch, r.activityId, stadium)}</select>
-            </td>
-            <td style="white-space:nowrap;">
-              <button class="btn small place-btn" style="margin:0 6px 0 0;">Placera</button>
-              <button class="rowbtn" data-remove-pending="${r.id}">Ta bort</button>
-            </td>
-          </tr>`;
-        }).join("")}
-      </tbody>
-    </table>
-    </div>`;
+            <label class="activity-check">
+              <input type="checkbox" value="${a.id}" ${wishSet.has(a.id) ? "checked" : ""}>
+              <span>${activityLabelHtml(a)}</span>
+              <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>
+            </label>`;
+        }).join("")
+      : '<p class="muted">Inga aktiviteter i den här årskursgruppen än.</p>';
+
+    return `
+      <div class="pending-card" data-reg="${r.id}">
+        <div class="pending-head">
+          <span class="pname">${escapeHtml(r.childName)}</span>
+          <span class="badge ok">Åk ${escapeHtml(r.grade)} · ${escapeHtml(r.klass)}</span>
+        </div>
+        <div class="pending-meta">
+          <div>Kön: <b>${escapeHtml(r.gender || '–')}</b> &nbsp;·&nbsp; Går på fritids: <b>${r.attendsFritids ? "Ja" : "Nej"}</b></div>
+          <div>Barnets telefon: <b>${r.childPhone ? phoneLink(r.childPhone) : '–'}</b></div>
+          <div>Förälder: <b>${escapeHtml(r.parentName)}</b> &nbsp;·&nbsp; Telefon: <b>${phoneLink(r.parentPhone)}</b></div>
+          <div>Önskemål: <b>${escapeHtml(wishIds(r).map(id => activityName(currentBranch, id)).join(', ') || '–')}</b></div>
+        </div>
+        <label class="muted" style="font-size:12px;">Placera i:</label>
+        <div class="activity-checks pending-place-checks">${checksHtml}</div>
+        <div class="pending-actions">
+          <button class="rowbtn" data-remove-pending="${r.id}">Ta bort ansökan</button>
+          <button class="btn small place-btn">Placera</button>
+        </div>
+      </div>`;
+  }).join("");
 
   wrap.querySelectorAll(".place-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const tr = btn.closest("tr");
-      const regId = tr.dataset.reg;
-      const select = tr.querySelector(".place-select");
-      if(!select.value) return;
-      const act = acts(currentBranch).find(a => a.id === select.value);
-      if(!act) return;
-      if(act.maxSpots && placedCountFor(currentBranch, act.id) >= act.maxSpots){
-        if(!confirm(act.name + ' är redan fullt. Placera ändå?')) return;
+      const card = btn.closest(".pending-card");
+      const regId = card.dataset.reg;
+      const chosen = Array.from(card.querySelectorAll('.pending-place-checks input[type="checkbox"]:checked')).map(c => c.value);
+      if(!chosen.length){
+        alert("Välj minst en aktivitet att placera i.");
+        return;
       }
-      await updateDoc(doc(db, "registrations", regId), { placedActivityId: act.id });
+      await updateDoc(doc(db, "registrations", regId), { placedActivityIds: chosen });
     });
   });
 
   wrap.querySelectorAll("[data-remove-pending]").forEach(btn => {
     btn.addEventListener("click", async () => {
+      if(!confirm("Ta bort den här ansökan helt?")) return;
       await deleteDoc(doc(db, "registrations", btn.dataset.removePending));
     });
   });
@@ -458,21 +472,19 @@ function renderAdmin(){
     wrap.appendChild(heading);
 
     stActs.forEach(act => {
-      const regsHere = regs(currentBranch).filter(r => r.placedActivityId === act.id);
+      const regsHere = regs(currentBranch).filter(r => placedIds(r).includes(act.id));
       const box = document.createElement("div");
       box.className = "adm-act";
       const rowsHtml = regsHere.length
         ? regsHere.map(r => `
             <tr data-reg="${r.id}">
-              <td>${escapeHtml(r.name)}</td>
-              <td>${phoneLink(r.phone)}</td>
+              <td>${escapeHtml(r.childName)}</td>
               <td>${escapeHtml(r.klass)}</td>
-              <td>
-                <select class="move-select">${activityOptionsHtml(currentBranch, act.id, act.stadium)}</select>
-              </td>
+              <td>${escapeHtml(r.parentName)}</td>
+              <td>${phoneLink(r.parentPhone)}</td>
               <td style="white-space:nowrap;">
-                <button class="rowbtn move-btn" style="margin-right:10px;">Flytta</button>
-                <button class="rowbtn" data-reg-remove="${r.id}">Ta bort</button>
+                <button class="rowbtn unplace-btn" style="margin-right:10px;" title="Tar bara bort barnet från den här aktiviteten">Flytta bort</button>
+                <button class="rowbtn" data-reg-remove="${r.id}" title="Tar bort hela anmälan">Ta bort deltagare</button>
               </td>
             </tr>`).join("")
         : `<tr><td colspan="5" class="empty">Ingen placerad här än.</td></tr>`;
@@ -485,64 +497,95 @@ function renderAdmin(){
           </div>
           <button class="del-x" data-act="${act.id}" title="Ta bort aktivitet" aria-label="Ta bort aktivitet">✕</button>
         </div>
+        <div class="act-schedule-row" data-act-schedule="${act.id}">
+          <span class="act-schedule-view">
+            <span class="act-schedule-text">${act.schedule ? escapeHtml(act.schedule) : '<span class="muted">Ingen tid inställd</span>'}</span>
+            <button class="ghostlink schedule-edit-btn">Ändra tid</button>
+          </span>
+        </div>
         <div class="table-scroll">
         <table>
-          <thead><tr><th>Namn</th><th>Telefon</th><th>Klass</th><th>Flytta till</th><th></th></tr></thead>
+          <thead><tr><th>Barn</th><th>Klass</th><th>Förälder</th><th>Förälders telefon</th><th></th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
         </div>
         <div class="inline-add">
-          <input type="text" placeholder="Namn" class="add-name">
-          <input type="tel" placeholder="Telefon (valfritt)" class="add-phone">
-          <input type="text" placeholder="Klass" class="add-class" style="max-width:100px;">
+          <input type="text" placeholder="Barnets namn" class="add-name">
+          <input type="text" placeholder="Klass" class="add-class" style="max-width:90px;">
+          <input type="text" placeholder="Förälders namn" class="add-parent">
+          <input type="tel" placeholder="Förälders telefon (valfritt)" class="add-phone">
           <button class="btn small add-reg-btn">Lägg till direkt</button>
         </div>
       `;
       wrap.appendChild(box);
 
+      const scheduleRow = box.querySelector(`[data-act-schedule="${act.id}"]`);
+      scheduleRow.querySelector(".schedule-edit-btn").addEventListener("click", () => {
+        scheduleRow.innerHTML = `
+          <div class="act-schedule-edit">
+            <input type="text" class="schedule-input" value="${escapeHtml(act.schedule || '')}" placeholder="t.ex. Måndag 15:00–16:15">
+            <button class="btn small schedule-save-btn">Spara</button>
+            <button class="ghostlink schedule-cancel-btn">Avbryt</button>
+          </div>`;
+        scheduleRow.querySelector(".schedule-save-btn").addEventListener("click", async () => {
+          const newSchedule = scheduleRow.querySelector(".schedule-input").value.trim();
+          await updateDoc(doc(db, "activities", act.id), { schedule: newSchedule });
+        });
+        scheduleRow.querySelector(".schedule-cancel-btn").addEventListener("click", () => {
+          renderAdmin();
+        });
+      });
+
       box.querySelector(".del-x").addEventListener("click", async () => {
-        if(!confirm('Ta bort aktiviteten "' + act.name + '"? Alla som är placerade eller sökt dit tas också bort.')) return;
-        const toRemove = regs(currentBranch).filter(r => r.activityId === act.id || r.placedActivityId === act.id);
-        await Promise.all(toRemove.map(r => deleteDoc(doc(db, "registrations", r.id))));
+        if(!confirm('Ta bort aktiviteten "' + act.name + '"? Den tas bort ur alla ansökningar/placeringar som nämner den.')) return;
+        const affected = regs(currentBranch).filter(r => wishIds(r).includes(act.id) || placedIds(r).includes(act.id));
+        await Promise.all(affected.map(r => {
+          const newWish = wishIds(r).filter(id => id !== act.id);
+          const newPlaced = placedIds(r).filter(id => id !== act.id);
+          return updateDoc(doc(db, "registrations", r.id), { wishActivityIds: newWish, placedActivityIds: newPlaced });
+        }));
         await deleteDoc(doc(db, "activities", act.id));
       });
 
       box.querySelectorAll("[data-reg-remove]").forEach(b => {
         b.addEventListener("click", async () => {
+          if(!confirm("Ta bort den här deltagaren helt (alla placeringar och ansökan)?")) return;
           await deleteDoc(doc(db, "registrations", b.dataset.regRemove));
         });
       });
 
-      box.querySelectorAll(".move-btn").forEach(b => {
+      box.querySelectorAll(".unplace-btn").forEach(b => {
         b.addEventListener("click", async () => {
           const tr = b.closest("tr");
           const regId = tr.dataset.reg;
-          const chosenId = tr.querySelector(".move-select").value;
-          const newAct = acts(currentBranch).find(a => a.id === chosenId);
-          if(!newAct || chosenId === act.id) return;
-          if(newAct.maxSpots && placedCountFor(currentBranch, newAct.id) >= newAct.maxSpots){
-            if(!confirm(newAct.name + ' är redan fullt. Flytta ändå?')) return;
-          }
-          await updateDoc(doc(db, "registrations", regId), { placedActivityId: chosenId });
+          const r = regs(currentBranch).find(x => x.id === regId);
+          if(!r) return;
+          const newPlaced = placedIds(r).filter(id => id !== act.id);
+          await updateDoc(doc(db, "registrations", regId), { placedActivityIds: newPlaced });
         });
       });
 
       box.querySelector(".add-reg-btn").addEventListener("click", async () => {
         const nameInp = box.querySelector(".add-name");
-        const phoneInp = box.querySelector(".add-phone");
         const classInp = box.querySelector(".add-class");
-        const name = nameInp.value.trim();
+        const parentInp = box.querySelector(".add-parent");
+        const phoneInp = box.querySelector(".add-phone");
+        const childName = nameInp.value.trim();
         const klass = classInp.value.trim();
-        const phone = phoneInp.value.trim();
-        if(!name || !klass) return;
+        const parentName = parentInp.value.trim();
+        const parentPhone = phoneInp.value.trim();
+        if(!childName || !klass) return;
         const grade = st.id === "lag" ? "1" : st.id === "mellan" ? "4" : "7";
         await addDoc(registrationsCol, {
-          branch: currentBranch, name, phone, klass, grade,
-          activityId: act.id, placedActivityId: act.id, ts: Date.now()
+          branch: currentBranch, childName, klass, grade,
+          gender: "", attendsFritids: false, childPhone: "",
+          parentName, parentPhone,
+          wishActivityIds: [act.id], placedActivityIds: [act.id], ts: Date.now()
         });
         nameInp.value = "";
-        phoneInp.value = "";
         classInp.value = "";
+        parentInp.value = "";
+        phoneInp.value = "";
       });
     });
   });
@@ -564,35 +607,51 @@ function renderDeltagarlista(){
     let list = regs(currentBranch).filter(r => stadiumForGrade(r.grade) === st.id);
     if(contactFilter){
       list = list.filter(r =>
-        r.name.toLowerCase().includes(contactFilter) ||
-        r.klass.toLowerCase().includes(contactFilter) ||
-        (r.phone || "").toLowerCase().includes(contactFilter)
+        (r.childName || "").toLowerCase().includes(contactFilter) ||
+        (r.klass || "").toLowerCase().includes(contactFilter) ||
+        (r.parentName || "").toLowerCase().includes(contactFilter) ||
+        (r.parentPhone || "").toLowerCase().includes(contactFilter)
       );
     }
-    list = list.slice().sort((a,b) => (a.grade - b.grade) || a.name.localeCompare(b.name, 'sv'));
+    list = list.slice().sort((a,b) => (a.grade - b.grade) || a.childName.localeCompare(b.childName, 'sv'));
 
     const section = document.createElement("div");
     section.className = "deltagar-group";
     const rowsHtml = list.length
-      ? list.map(r => `
-          <tr>
-            <td>${escapeHtml(r.name)}</td>
-            <td>${r.phone ? phoneLink(r.phone) : '<span class="muted">–</span>'}</td>
+      ? list.map(r => {
+          const placedNames = placedIds(r).map(id => activityName(currentBranch, id));
+          return `
+          <tr data-reg="${r.id}">
+            <td>${escapeHtml(r.childName)}</td>
+            <td>${escapeHtml(r.gender || '–')}</td>
             <td>${escapeHtml(r.grade)}</td>
             <td>${escapeHtml(r.klass)}</td>
-            <td>${r.placedActivityId ? escapeHtml(activityName(currentBranch, r.placedActivityId)) : '<span class="muted">Väntar på placering</span>'}</td>
-          </tr>`).join("")
-      : `<tr><td colspan="5" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
+            <td>${r.attendsFritids ? "Ja" : "Nej"}</td>
+            <td>${escapeHtml(r.parentName)}</td>
+            <td>${phoneLink(r.parentPhone)}</td>
+            <td>${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
+            <td>${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</td>
+            <td><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
+          </tr>`;
+        }).join("")
+      : `<tr><td colspan="10" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
 
     section.innerHTML = `
       <h4 class="stadium-heading">${st.label} <span class="muted">(${st.sub}) · ${list.length} st</span></h4>
       <div class="table-scroll">
       <table>
-        <thead><tr><th>Namn</th><th>Telefon</th><th>Åk</th><th>Klass</th><th>Aktivitet</th></tr></thead>
+        <thead><tr><th>Barn</th><th>Kön</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       </div>`;
     wrap.appendChild(section);
+  });
+
+  wrap.querySelectorAll("[data-contact-remove]").forEach(b => {
+    b.addEventListener("click", async () => {
+      if(!confirm("Ta bort den här deltagaren helt?")) return;
+      await deleteDoc(doc(db, "registrations", b.dataset.contactRemove));
+    });
   });
 }
 
