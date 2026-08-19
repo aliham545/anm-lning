@@ -45,12 +45,18 @@
       <div class="grid">
         <div class="card">
           <h2>Anmälan</h2>
-          <p class="sub">Fyll i dina uppgifter. Välj årskurs, då visas de aktiviteter som passar dig.</p>
+          <p class="sub">Fyll i uppgifterna. Välj årskurs, då visas de aktiviteter som passar barnet — man kan välja fler än en.</p>
           <form id="signupForm">
-            <label for="s-name">Namn</label>
+            <label for="s-name">Barnets namn</label>
             <input type="text" id="s-name" placeholder="Förnamn Efternamn" autocomplete="off">
-            <label for="s-phone">Telefonnummer</label>
-            <input type="tel" id="s-phone" placeholder="07X-XXX XX XX" autocomplete="off">
+
+            <label>Kön</label>
+            <div class="radio-row" id="s-gender">
+              <label class="radio-pill"><input type="radio" name="gender" value="Flicka"> Flicka</label>
+              <label class="radio-pill"><input type="radio" name="gender" value="Pojke"> Pojke</label>
+              <label class="radio-pill"><input type="radio" name="gender" value="Annat"> Annat</label>
+            </div>
+
             <label for="s-grade">Årskurs</label>
             <select id="s-grade">
               <option value="">Välj årskurs</option>
@@ -64,12 +70,26 @@
               <option value="8">Årskurs 8</option>
               <option value="9">Årskurs 9</option>
             </select>
+
             <label for="s-class">Klass</label>
             <input type="text" id="s-class" placeholder="t.ex. 5B" autocomplete="off">
-            <label for="s-activity">Önskad aktivitet</label>
-            <select id="s-activity" disabled>
-              <option value="">Välj årskurs först</option>
-            </select>
+
+            <label class="checkbox-row"><input type="checkbox" id="s-fritids"> Barnet går på fritids</label>
+
+            <label for="s-childphone">Barnets telefonnummer <span class="optional">(valfritt)</span></label>
+            <input type="tel" id="s-childphone" placeholder="07X-XXX XX XX" autocomplete="off">
+
+            <label for="s-parentname">Förälders namn</label>
+            <input type="text" id="s-parentname" placeholder="Förnamn Efternamn" autocomplete="off">
+
+            <label for="s-parentphone">Förälders telefonnummer</label>
+            <input type="tel" id="s-parentphone" placeholder="07X-XXX XX XX" autocomplete="off">
+
+            <label>Önskade aktiviteter</label>
+            <div id="s-activities" class="activity-checks">
+              <p class="muted">Välj årskurs först</p>
+            </div>
+
             <p class="err" id="s-err"></p>
             <button type="submit" class="btn">Skicka ansökan</button>
           </form>
@@ -108,6 +128,10 @@
           <div class="field">
             <label>Namn</label>
             <input type="text" id="newActName" placeholder="t.ex. Pyssel">
+          </div>
+          <div class="field">
+            <label>Tid</label>
+            <input type="text" id="newActSchedule" placeholder="t.ex. Måndag 15:00–16:15">
           </div>
           <div class="field">
             <label>Årskursgrupp</label>
