@@ -307,6 +307,67 @@ input:focus,select:focus,textarea:focus{
 
 .login-box{max-width:340px;margin:0 auto;}
 
+.optional{font-weight:400;color:var(--text-soft);text-transform:none;letter-spacing:0;}
+
+.radio-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;}
+.radio-pill{
+  display:flex;align-items:center;gap:6px;
+  border:1.5px solid var(--line);
+  background:var(--blue-pale);
+  padding:8px 14px;
+  border-radius:999px;
+  font-size:14px;
+  font-weight:600;
+  color:var(--navy);
+  cursor:pointer;
+}
+.radio-pill input{margin:0;accent-color:var(--blue);}
+.radio-pill:has(input:checked){background:var(--blue-light);border-color:var(--blue);}
+
+.checkbox-row{
+  display:flex;align-items:center;gap:8px;
+  margin:16px 0 0;
+  font-size:14px;
+  font-weight:700;
+  color:var(--navy);
+  cursor:pointer;
+}
+.checkbox-row input{width:17px;height:17px;accent-color:var(--blue);}
+
+.activity-checks{
+  display:flex;flex-direction:column;gap:8px;
+  margin-top:2px;
+}
+.activity-check{
+  display:flex;align-items:center;gap:10px;
+  border:1.5px solid var(--line);
+  background:var(--blue-pale);
+  padding:10px 14px;
+  border-radius:10px;
+  font-size:14px;
+  font-weight:600;
+  color:var(--navy);
+  cursor:pointer;
+}
+.activity-check input{width:18px;height:18px;accent-color:var(--blue);flex-shrink:0;}
+.activity-check:has(input:checked){background:var(--blue-light);border-color:var(--blue);}
+.activity-check.disabled{opacity:.55;cursor:not-allowed;}
+.activity-check .achk-badge{margin-left:auto;font-size:11px;font-weight:700;color:var(--text-soft);}
+
+.pending-card{
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  padding:16px;
+  background:#fff;
+  margin-bottom:14px;
+}
+.pending-card:last-child{margin-bottom:0;}
+.pending-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.pending-head .pname{font-weight:700;color:var(--navy);font-size:16px;}
+.pending-meta{font-size:13px;color:var(--text-soft);margin-bottom:10px;line-height:1.6;}
+.pending-meta b{color:var(--text);}
+.pending-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;}
+
 .branch-gate{max-width:420px;margin:0 auto;text-align:center;}
 .gate-btns{display:flex;flex-direction:column;gap:10px;margin-top:18px;}
 .gate-btn{
@@ -370,6 +431,7 @@ input:focus,select:focus,textarea:focus{
 .adm-act-head .name{font-weight:700;color:var(--navy);}
 .adm-act-head .count{font-size:12px;color:var(--text-soft);}
 
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 table{width:100%;border-collapse:collapse;font-size:14px;}
 
 th{
@@ -386,6 +448,17 @@ td{padding:8px 16px;border-bottom:1px solid var(--blue-pale);}
 tr:last-child td{border-bottom:none;}
 td a{color:var(--blue);font-weight:700;text-decoration:none;}
 td a:hover{text-decoration:underline;}
+.phone-link{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:4px 2px;
+  white-space:nowrap;
+}
+.phone-link::before{
+  content:"📞";
+  font-size:12px;
+}
 
 .rowbtn{
   background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;font-weight:700;
@@ -418,3 +491,64 @@ td a:hover{text-decoration:underline;}
 }
 
 .adm-topbar{display:flex;align-items:center;margin-bottom:6px;}
+
+/* ---------- Responsivt (mobil) ---------- */
+
+@media (max-width:680px){
+  .wrap{padding:0 12px 40px;}
+  header{padding:24px 14px 34px;}
+  .card{padding:16px;}
+  .signup-branch-bar{flex-direction:column;gap:6px;}
+  .toolbar{flex-direction:column;align-items:stretch;}
+  .toolbar .field, .toolbar .maxfield{min-width:0;max-width:none;width:100%;}
+  .toolbar button{width:100%;}
+  .adm-topbar{flex-wrap:wrap;gap:8px;}
+  .adm-topbar .logout, .adm-topbar #clearRegsBtn{margin-left:0;}
+  .inline-add{flex-direction:column;align-items:stretch;}
+  .inline-add input, .inline-add button{width:100%;min-width:0;}
+  .pending-actions{flex-direction:column-reverse;}
+  .pending-actions button{width:100%;}
+  .radio-row{gap:6px;}
+  .radio-pill{flex:1;justify-content:center;padding:9px 8px;}
+  .gate-btns{gap:8px;}
+  .branch-switch{gap:6px;}
+  .branchbtn{flex:1;text-align:center;}
+}
+
+@media (max-width:400px){
+  header .brand, .logo-text-name{font-size:16px;}
+  .stadium-heading{font-size:13px;}
+  th, td{padding:8px 10px;font-size:13px;}
+}
+
+/* ---------- Aktivitetstid ---------- */
+
+.act-time{
+  font-weight:600;
+  color:var(--text-soft);
+  font-size:12px;
+}
+
+.act-schedule-row{
+  padding:8px 16px;
+  background:var(--blue-pale);
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  font-size:13px;
+}
+.act-schedule-view{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.act-schedule-text{color:var(--navy);font-weight:600;}
+.act-schedule-edit{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.act-schedule-edit input{flex:1;min-width:160px;}
+.act-schedule-edit .btn.small{margin:0;}
