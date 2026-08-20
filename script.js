@@ -1,19 +1,30 @@
-import { db } from "./firebase.js";
+import { db, auth } from "./firebase.js";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot,
-  query, where, getDocs
+  query, where, getDocs, increment
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import {
+  onAuthStateChanged, signInWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 const BRANCHES = [
-  { id: "holma", name: "Holma/Kroksbäck", code: "fritids2026" },
-  { id: "hermodsdal", name: "Hermodsdal", code: "hermodsdal2026" }
+  { id: "holma", name: "Holma/Kroksbäck" },
+  { id: "hermodsdal", name: "Hermodsdal" }
 ];
 const CURRENT_BRANCH_KEY = "fg-current-branch";
+
+// OBS: skolor för Hermodsdal är en gissning (Hermodsdalsskolan) - byt/lägg till vid behov.
+const SCHOOLS_BY_BRANCH = {
+  holma: ["Holmaskolan", "Kroksbäckskolan"],
+  hermodsdal: ["Hermodsdalsskolan"]
+};
 
 const STADIUMS = [
   { id: "lag", label: "Lågstadiet", sub: "Årskurs 1–3" },
   { id: "mellan", label: "Mellanstadiet", sub: "Årskurs 4–6" },
-  { id: "hog", label: "Högstadiet", sub: "Årskurs 7–9" }
+  { id: "hog", label: "Högstadiet", sub: "Årskurs 7–9" },
+  { id: "utflykt", label: "Utflykter", sub: "Alla åldrar" },
+  { id: "familj", label: "Familjeaktivitet", sub: "Hela familjen" }
 ];
 
 const activitiesCol = collection(db, "activities");
@@ -21,6 +32,7 @@ const registrationsCol = collection(db, "registrations");
 
 let activitiesByBranch = { holma: [], hermodsdal: [] };
 let registrationsByBranch = { holma: [], hermodsdal: [] };
+let unsubscribeRegs = null;
 
 let currentBranch = localStorage.getItem(CURRENT_BRANCH_KEY) || BRANCHES[0].id;
 if(!BRANCHES.some(b => b.id === currentBranch)) currentBranch = BRANCHES[0].id;
@@ -63,6 +75,9 @@ function placedIds(r){
 function wishIds(r){
   return Array.isArray(r.wishActivityIds) ? r.wishActivityIds : [];
 }
+function actStadiums(a){
+  return Array.isArray(a.stadiums) ? a.stadiums : (a.stadium ? [a.stadium] : []);
+}
 
 /* ---------- Live-synk mot Firestore ---------- */
 
@@ -77,16 +92,23 @@ onSnapshot(activitiesCol, snap => {
   rerenderAll();
 }, err => console.error("activities snapshot error:", err));
 
-onSnapshot(registrationsCol, snap => {
-  const grouped = { holma: [], hermodsdal: [] };
-  snap.forEach(d => {
-    const data = { id: d.id, ...d.data() };
-    if(!grouped[data.branch]) grouped[data.branch] = [];
-    grouped[data.branch].push(data);
-  });
-  registrationsByBranch = grouped;
-  rerenderAll();
-}, err => console.error("registrations snapshot error:", err));
+function startRegistrationsListener(){
+  if(unsubscribeRegs) return;
+  unsubscribeRegs = onSnapshot(registrationsCol, snap => {
+    const grouped = { holma: [], hermodsdal: [] };
+    snap.forEach(d => {
+      const data = { id: d.id, ...d.data() };
+      if(!grouped[data.branch]) grouped[data.branch] = [];
+      grouped[data.branch].push(data);
+    });
+    registrationsByBranch = grouped;
+    rerenderAll();
+  }, err => console.error("registrations snapshot error:", err));
+}
+function stopRegistrationsListener(){
+  if(unsubscribeRegs){ unsubscribeRegs(); unsubscribeRegs = null; }
+  registrationsByBranch = { holma: [], hermodsdal: [] };
+}
 
 function rerenderAll(){
   if(signupBranch){
@@ -99,7 +121,15 @@ function rerenderAll(){
 function acts(branchId){ return activitiesByBranch[branchId] || []; }
 function regs(branchId){ return registrationsByBranch[branchId] || []; }
 
-function placedCountFor(branchId, actId){
+// Publikt/visningsantal - bygger på det synkade räknefältet på aktiviteten
+// (registreringar är inte publikt läsbara, se Firestore-reglerna).
+function displayCount(branchId, actId){
+  const a = acts(branchId).find(a => a.id === actId);
+  return a && a.placedCount ? a.placedCount : 0;
+}
+// Faktiskt antal utifrån riktiga anmälningar - bara tillgängligt när man är
+// inloggad (admin), används för avstämning och deltagarlistor.
+function realPlacedCountFor(branchId, actId){
   return regs(branchId).filter(r => placedIds(r).includes(actId)).length;
 }
 function activityName(branchId, id){
@@ -107,14 +137,25 @@ function activityName(branchId, id){
   return a ? a.name : "Okänd aktivitet";
 }
 function activitiesForStadium(branchId, stadium){
-  return acts(branchId).filter(a => a.stadium === stadium);
+  return acts(branchId).filter(a => actStadiums(a).includes(stadium));
+}
+
+// Håller det publika räknefältet i synk med verkliga placeringar. Körs vid
+// varje admin-rendering; skriver bara om värdet faktiskt avviker.
+async function reconcileCounts(branchId){
+  for(const a of acts(branchId)){
+    const real = realPlacedCountFor(branchId, a.id);
+    if((a.placedCount || 0) !== real){
+      try{ await updateDoc(doc(db, "activities", a.id), { placedCount: real }); }catch(e){ /* ignore */ }
+    }
+  }
 }
 
 /* ---------- Header ---------- */
 
 function updateHeaderForAdminBranch(){
   const b = branchInfo(currentBranch);
-  document.getElementById("adminLoginSub").textContent = "Ange koden för " + b.name + ".";
+  document.getElementById("adminLoginSub").textContent = "Logga in med ditt personal-konto för att hantera " + b.name + ".";
   document.getElementById("adminBranchLabel").textContent = "· " + b.name;
 }
 
@@ -130,12 +171,9 @@ function renderBranchSwitch(){
       if(btn.dataset.branch === currentBranch) return;
       currentBranch = btn.dataset.branch;
       localStorage.setItem(CURRENT_BRANCH_KEY, currentBranch);
-      isAdmin = false;
-      document.getElementById("adminLogin").style.display = "block";
-      document.getElementById("adminPanel").style.display = "none";
-      document.getElementById("pw").value = "";
       renderBranchSwitch();
       updateHeaderForAdminBranch();
+      if(isAdmin) renderAdmin();
     });
   });
 }
@@ -152,12 +190,20 @@ function renderGate(){
   });
 }
 
+function renderSchoolSelect(){
+  const sel = document.getElementById("s-school");
+  const schools = SCHOOLS_BY_BRANCH[signupBranch] || [];
+  sel.innerHTML = '<option value="">Välj skola</option>' +
+    schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+}
+
 function selectSignupBranch(branchId){
   signupBranch = branchId;
   document.getElementById("branchGate").style.display = "none";
   document.getElementById("signupContent").style.display = "block";
   document.getElementById("signupBranchLabel").textContent = branchInfo(branchId).name;
   document.getElementById("actListSub").textContent = "Så här ser det ut just nu hos " + branchInfo(branchId).name + ".";
+  renderSchoolSelect();
   renderActivityChecks();
   renderActList();
 }
@@ -175,25 +221,48 @@ function renderActivityChecks(){
   const grade = document.getElementById("s-grade").value;
   const stadium = stadiumForGrade(grade);
   wrap.innerHTML = "";
-  if(!signupBranch || !stadium){
+  if(!signupBranch){
     wrap.innerHTML = '<p class="muted">Välj årskurs först</p>';
     return;
   }
-  const options = activitiesForStadium(signupBranch, stadium);
-  if(!options.length){
-    wrap.innerHTML = '<p class="muted">Inga aktiviteter för den årskursen än</p>';
+
+  const sections = [];
+  if(stadium){
+    const cat = STADIUMS.find(s => s.id === stadium);
+    sections.push({ label: cat.label, options: activitiesForStadium(signupBranch, stadium) });
+  }
+  ["utflykt", "familj"].forEach(catId => {
+    const options = activitiesForStadium(signupBranch, catId);
+    if(options.length){
+      sections.push({ label: STADIUMS.find(s => s.id === catId).label, options });
+    }
+  });
+
+  const anyOptions = sections.some(s => s.options.length);
+  if(!anyOptions){
+    wrap.innerHTML = stadium
+      ? '<p class="muted">Inga aktiviteter för den årskursen än</p>'
+      : '<p class="muted">Välj årskurs först</p>';
     return;
   }
-  options.forEach(a => {
-    const count = placedCountFor(signupBranch, a.id);
-    const full = a.maxSpots && count >= a.maxSpots;
-    const label = document.createElement("label");
-    label.className = "activity-check" + (full ? " disabled" : "");
-    label.innerHTML = `
-      <input type="checkbox" value="${a.id}" ${full ? "disabled" : ""}>
-      <span>${activityLabelHtml(a)}</span>
-      <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>`;
-    wrap.appendChild(label);
+
+  sections.forEach(sec => {
+    if(!sec.options.length) return;
+    const heading = document.createElement("div");
+    heading.className = "achk-section-heading";
+    heading.textContent = sec.label;
+    wrap.appendChild(heading);
+    sec.options.forEach(a => {
+      const count = displayCount(signupBranch, a.id);
+      const full = a.maxSpots && count >= a.maxSpots;
+      const label = document.createElement("label");
+      label.className = "activity-check" + (full ? " disabled" : "");
+      label.innerHTML = `
+        <input type="checkbox" value="${a.id}" ${full ? "disabled" : ""}>
+        <span>${activityLabelHtml(a)}</span>
+        <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>`;
+      wrap.appendChild(label);
+    });
   });
 }
 
@@ -217,7 +286,7 @@ function renderActList(){
     const list = document.createElement("div");
     list.className = "act-list";
     stActs.forEach(a => {
-      const count = placedCountFor(signupBranch, a.id);
+      const count = displayCount(signupBranch, a.id);
       const full = a.maxSpots && count >= a.maxSpots;
       const div = document.createElement("div");
       div.className = "act-card";
@@ -242,6 +311,7 @@ function showTicket(branchName, data, wishNames){
       <img src="assets/logo-a.png" alt="" class="mark" aria-hidden="true">
       <p class="ticket-title">Ansökan mottagen · ${escapeHtml(branchName)}</p>
       <h3>${escapeHtml(data.childName)}</h3>
+      <div class="row"><span>Skola</span><b>${escapeHtml(data.school)}</b></div>
       <div class="row"><span>Årskurs</span><b>${escapeHtml(data.grade)}</b></div>
       <div class="row"><span>Klass</span><b>${escapeHtml(data.klass)}</b></div>
       <div class="row"><span>Önskade aktiviteter</span><b>${escapeHtml(wishNames.join(', '))}</b></div>
@@ -265,21 +335,23 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   const childName = document.getElementById("s-name").value.trim();
   const genderInput = document.querySelector('input[name="gender"]:checked');
   const gender = genderInput ? genderInput.value : "";
+  const school = document.getElementById("s-school").value;
   const grade = document.getElementById("s-grade").value;
   const klass = document.getElementById("s-class").value.trim();
   const attendsFritids = document.getElementById("s-fritids").checked;
   const childPhone = document.getElementById("s-childphone").value.trim();
   const parentName = document.getElementById("s-parentname").value.trim();
   const parentPhone = document.getElementById("s-parentphone").value.trim();
+  const otherInfo = document.getElementById("s-other").value.trim();
   const wishActivityIds = Array.from(document.querySelectorAll('#s-activities input[type="checkbox"]:checked')).map(c => c.value);
 
-  if(!childName || !gender || !grade || !klass || !parentName || !parentPhone || !wishActivityIds.length){
-    err.textContent = "Fyll i barnets namn, kön, årskurs, klass, förälders namn och telefonnummer, och välj minst en aktivitet.";
+  if(!childName || !gender || !school || !grade || !klass || !parentName || !parentPhone || !wishActivityIds.length){
+    err.textContent = "Fyll i barnets namn, kön, skola, årskurs, klass, förälders namn och telefonnummer, och välj minst en aktivitet.";
     err.style.display = "block";
     return;
   }
 
-  const data = { childName, gender, grade, klass, attendsFritids, childPhone, parentName, parentPhone };
+  const data = { childName, gender, school, grade, klass, attendsFritids, childPhone, parentName, parentPhone, otherInfo };
   const wishNames = wishActivityIds.map(id => activityName(signupBranch, id));
 
   try{
@@ -312,27 +384,46 @@ document.querySelectorAll(".tabbtn").forEach(btn => {
   });
 });
 
-/* ---------- Admin-inloggning ---------- */
+/* ---------- Admin-inloggning (Firebase Authentication) ---------- */
 
-document.getElementById("pwBtn").addEventListener("click", () => {
-  const val = document.getElementById("pw").value;
+onAuthStateChanged(auth, user => {
+  isAdmin = !!user;
   const err = document.getElementById("pw-err");
-  if(val === branchInfo(currentBranch).code){
-    isAdmin = true;
+  if(user){
+    err.style.display = "none";
+    document.getElementById("admPassword").value = "";
     document.getElementById("adminLogin").style.display = "none";
     document.getElementById("adminPanel").style.display = "block";
+    startRegistrationsListener();
     renderAdmin();
   }else{
-    err.textContent = "Fel kod, försök igen.";
+    stopRegistrationsListener();
+    document.getElementById("adminPanel").style.display = "none";
+    document.getElementById("adminLogin").style.display = "block";
+    rerenderAll();
+  }
+});
+
+document.getElementById("pwBtn").addEventListener("click", async () => {
+  const email = document.getElementById("admEmail").value.trim();
+  const password = document.getElementById("admPassword").value;
+  const err = document.getElementById("pw-err");
+  err.style.display = "none";
+  if(!email || !password){
+    err.textContent = "Fyll i e-post och lösenord.";
+    err.style.display = "block";
+    return;
+  }
+  try{
+    await signInWithEmailAndPassword(auth, email, password);
+  }catch(e){
+    err.textContent = "Fel e-post eller lösenord.";
     err.style.display = "block";
   }
 });
 
 document.getElementById("logoutBtn").addEventListener("click", () => {
-  isAdmin = false;
-  document.getElementById("pw").value = "";
-  document.getElementById("adminPanel").style.display = "none";
-  document.getElementById("adminLogin").style.display = "block";
+  signOut(auth);
 });
 
 /* ---------- Rensa anmälningar ---------- */
@@ -343,6 +434,13 @@ document.getElementById("clearRegsBtn").addEventListener("click", async () => {
   const q = query(registrationsCol, where("branch", "==", currentBranch));
   const snap = await getDocs(q);
   await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+  await Promise.all(acts(currentBranch).map(a => updateDoc(doc(db, "activities", a.id), { placedCount: 0 }).catch(() => {})));
+});
+
+/* ---------- Skriv ut deltagarlista ---------- */
+
+document.getElementById("printListBtn").addEventListener("click", () => {
+  window.print();
 });
 
 /* ---------- Lägg till aktivitet ---------- */
@@ -351,12 +449,17 @@ document.getElementById("addActBtn").addEventListener("click", async () => {
   const nameInp = document.getElementById("newActName");
   const scheduleInp = document.getElementById("newActSchedule");
   const maxInp = document.getElementById("newActMax");
-  const stadiumInp = document.getElementById("newActStadium");
   const err = document.getElementById("newAct-err");
   err.style.display = "none";
   const name = nameInp.value.trim();
+  const stadiums = Array.from(document.querySelectorAll('#newActStadiums input:checked')).map(c => c.value);
   if(!name){
     err.textContent = "Ange ett namn på aktiviteten.";
+    err.style.display = "block";
+    return;
+  }
+  if(!stadiums.length){
+    err.textContent = "Välj minst en grupp (t.ex. Lågstadiet eller Utflykter).";
     err.style.display = "block";
     return;
   }
@@ -366,7 +469,8 @@ document.getElementById("addActBtn").addEventListener("click", async () => {
       branch: currentBranch, name,
       schedule: scheduleInp.value.trim(),
       maxSpots: (maxSpots && maxSpots > 0) ? maxSpots : null,
-      stadium: stadiumInp.value
+      stadiums,
+      placedCount: 0
     });
   }catch(e){
     err.textContent = "Kunde inte spara, försök igen.";
@@ -377,6 +481,7 @@ document.getElementById("addActBtn").addEventListener("click", async () => {
   nameInp.value = "";
   scheduleInp.value = "";
   maxInp.value = "";
+  document.querySelectorAll('#newActStadiums input:checked').forEach(c => c.checked = false);
 });
 
 /* ---------- Väntande ansökningar ---------- */
@@ -394,11 +499,13 @@ function renderPending(){
 
   wrap.innerHTML = pending.map(r => {
     const stadium = stadiumForGrade(r.grade);
-    const options = activitiesForStadium(currentBranch, stadium);
+    const options = stadium ? activitiesForStadium(currentBranch, stadium) : [];
+    const extra = [...activitiesForStadium(currentBranch, "utflykt"), ...activitiesForStadium(currentBranch, "familj")];
+    const allOptions = [...options, ...extra.filter(a => !options.some(o => o.id === a.id))];
     const wishSet = new Set(wishIds(r));
-    const checksHtml = options.length
-      ? options.map(a => {
-          const count = placedCountFor(currentBranch, a.id);
+    const checksHtml = allOptions.length
+      ? allOptions.map(a => {
+          const count = realPlacedCountFor(currentBranch, a.id);
           const full = a.maxSpots && count >= a.maxSpots;
           return `
             <label class="activity-check">
@@ -416,10 +523,11 @@ function renderPending(){
           <span class="badge ok">Åk ${escapeHtml(r.grade)} · ${escapeHtml(r.klass)}</span>
         </div>
         <div class="pending-meta">
-          <div>Kön: <b>${escapeHtml(r.gender || '–')}</b> &nbsp;·&nbsp; Går på fritids: <b>${r.attendsFritids ? "Ja" : "Nej"}</b></div>
+          <div>Skola: <b>${escapeHtml(r.school || '–')}</b> &nbsp;·&nbsp; Kön: <b>${escapeHtml(r.gender || '–')}</b> &nbsp;·&nbsp; Går på fritids: <b>${r.attendsFritids ? "Ja" : "Nej"}</b></div>
           <div>Barnets telefon: <b>${r.childPhone ? phoneLink(r.childPhone) : '–'}</b></div>
           <div>Förälder: <b>${escapeHtml(r.parentName)}</b> &nbsp;·&nbsp; Telefon: <b>${phoneLink(r.parentPhone)}</b></div>
           <div>Önskemål: <b>${escapeHtml(wishIds(r).map(id => activityName(currentBranch, id)).join(', ') || '–')}</b></div>
+          ${r.otherInfo ? `<div>Övrig info: <b>${escapeHtml(r.otherInfo)}</b></div>` : ''}
         </div>
         <label class="muted" style="font-size:12px;">Placera i:</label>
         <div class="activity-checks pending-place-checks">${checksHtml}</div>
@@ -440,6 +548,7 @@ function renderPending(){
         return;
       }
       await updateDoc(doc(db, "registrations", regId), { placedActivityIds: chosen });
+      await Promise.all(chosen.map(id => updateDoc(doc(db, "activities", id), { placedCount: increment(1) }).catch(() => {})));
     });
   });
 
@@ -451,10 +560,20 @@ function renderPending(){
   });
 }
 
+/* ---------- Ta bort en hel anmälan (dekrementerar placedCount) ---------- */
+
+async function deleteRegistrationEntirely(regId){
+  const r = regs(currentBranch).find(x => x.id === regId);
+  const ids = r ? placedIds(r) : [];
+  await deleteDoc(doc(db, "registrations", regId));
+  await Promise.all(ids.map(id => updateDoc(doc(db, "activities", id), { placedCount: increment(-1) }).catch(() => {})));
+}
+
 /* ---------- Aktivitetslistor i admin ---------- */
 
 function renderAdmin(){
   updateHeaderForAdminBranch();
+  reconcileCounts(currentBranch);
   renderPending();
   const wrap = document.getElementById("adminActivities");
   wrap.innerHTML = "";
@@ -550,7 +669,7 @@ function renderAdmin(){
       box.querySelectorAll("[data-reg-remove]").forEach(b => {
         b.addEventListener("click", async () => {
           if(!confirm("Ta bort den här deltagaren helt (alla placeringar och ansökan)?")) return;
-          await deleteDoc(doc(db, "registrations", b.dataset.regRemove));
+          await deleteRegistrationEntirely(b.dataset.regRemove);
         });
       });
 
@@ -562,6 +681,7 @@ function renderAdmin(){
           if(!r) return;
           const newPlaced = placedIds(r).filter(id => id !== act.id);
           await updateDoc(doc(db, "registrations", regId), { placedActivityIds: newPlaced });
+          await updateDoc(doc(db, "activities", act.id), { placedCount: increment(-1) }).catch(() => {});
         });
       });
 
@@ -575,13 +695,14 @@ function renderAdmin(){
         const parentName = parentInp.value.trim();
         const parentPhone = phoneInp.value.trim();
         if(!childName || !klass) return;
-        const grade = st.id === "lag" ? "1" : st.id === "mellan" ? "4" : "7";
+        const grade = st.id === "lag" ? "1" : st.id === "mellan" ? "4" : st.id === "hog" ? "7" : "";
         await addDoc(registrationsCol, {
           branch: currentBranch, childName, klass, grade,
-          gender: "", attendsFritids: false, childPhone: "",
+          gender: "", school: "", attendsFritids: false, childPhone: "", otherInfo: "",
           parentName, parentPhone,
           wishActivityIds: [act.id], placedActivityIds: [act.id], ts: Date.now()
         });
+        await updateDoc(doc(db, "activities", act.id), { placedCount: increment(1) }).catch(() => {});
         nameInp.value = "";
         classInp.value = "";
         parentInp.value = "";
@@ -603,17 +724,34 @@ document.getElementById("contactSearch").addEventListener("input", (e) => {
 function renderDeltagarlista(){
   const wrap = document.getElementById("deltagarlista");
   wrap.innerHTML = "";
+
+  const printTitle = document.createElement("h3");
+  printTitle.id = "printTitle";
+  printTitle.textContent = "Deltagarlista · " + branchInfo(currentBranch).name + " · " + new Date().toLocaleDateString('sv-SE');
+  wrap.appendChild(printTitle);
+
   STADIUMS.forEach(st => {
-    let list = regs(currentBranch).filter(r => stadiumForGrade(r.grade) === st.id);
+    let list;
+    if(st.id === "utflykt" || st.id === "familj"){
+      const catActIds = new Set(activitiesForStadium(currentBranch, st.id).map(a => a.id));
+      list = regs(currentBranch).filter(r =>
+        placedIds(r).some(id => catActIds.has(id)) || wishIds(r).some(id => catActIds.has(id))
+      );
+    }else{
+      list = regs(currentBranch).filter(r => stadiumForGrade(r.grade) === st.id);
+    }
     if(contactFilter){
       list = list.filter(r =>
         (r.childName || "").toLowerCase().includes(contactFilter) ||
         (r.klass || "").toLowerCase().includes(contactFilter) ||
+        (r.school || "").toLowerCase().includes(contactFilter) ||
         (r.parentName || "").toLowerCase().includes(contactFilter) ||
         (r.parentPhone || "").toLowerCase().includes(contactFilter)
       );
     }
     list = list.slice().sort((a,b) => (a.grade - b.grade) || a.childName.localeCompare(b.childName, 'sv'));
+
+    if(!list.length && !contactFilter && (st.id === "utflykt" || st.id === "familj")) return;
 
     const section = document.createElement("div");
     section.className = "deltagar-group";
@@ -624,6 +762,7 @@ function renderDeltagarlista(){
           <tr data-reg="${r.id}">
             <td>${escapeHtml(r.childName)}</td>
             <td>${escapeHtml(r.gender || '–')}</td>
+            <td>${escapeHtml(r.school || '–')}</td>
             <td>${escapeHtml(r.grade)}</td>
             <td>${escapeHtml(r.klass)}</td>
             <td>${r.attendsFritids ? "Ja" : "Nej"}</td>
@@ -631,16 +770,17 @@ function renderDeltagarlista(){
             <td>${phoneLink(r.parentPhone)}</td>
             <td>${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
             <td>${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</td>
-            <td><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
+            <td>${r.otherInfo ? escapeHtml(r.otherInfo) : ''}</td>
+            <td class="no-print"><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
           </tr>`;
         }).join("")
-      : `<tr><td colspan="10" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
+      : `<tr><td colspan="12" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
 
     section.innerHTML = `
       <h4 class="stadium-heading">${st.label} <span class="muted">(${st.sub}) · ${list.length} st</span></h4>
       <div class="table-scroll">
       <table>
-        <thead><tr><th>Barn</th><th>Kön</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th></th></tr></thead>
+        <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       </div>`;
@@ -650,7 +790,7 @@ function renderDeltagarlista(){
   wrap.querySelectorAll("[data-contact-remove]").forEach(b => {
     b.addEventListener("click", async () => {
       if(!confirm("Ta bort den här deltagaren helt?")) return;
-      await deleteDoc(doc(db, "registrations", b.dataset.contactRemove));
+      await deleteRegistrationEntirely(b.dataset.contactRemove);
     });
   });
 }
