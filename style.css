@@ -552,3 +552,42 @@ td a:hover{text-decoration:underline;}
 }
 .act-schedule-edit input{flex:1;min-width:160px;}
 .act-schedule-edit .btn.small{margin:0;}
+
+/* ---------- Nya kategorier & skola ---------- */
+
+.achk-section-heading{
+  font-family:'Baloo 2',sans-serif;
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  color:var(--text-soft);
+  margin:14px 0 4px;
+}
+.achk-section-heading:first-child{margin-top:2px;}
+
+textarea{
+  width:100%;
+  padding:11px 12px;
+  border-radius:10px;
+  border:1.5px solid var(--line);
+  font-family:'Nunito',sans-serif;
+  font-size:15px;
+  background:var(--blue-pale);
+  color:var(--text);
+  resize:vertical;
+}
+textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
+
+/* ---------- Utskrift ---------- */
+
+@media print{
+  body *{visibility:hidden;}
+  #deltagarlista, #deltagarlista *{visibility:visible;}
+  #deltagarlista{position:absolute;left:0;top:0;width:100%;}
+  #printTitle{display:block !important;margin-bottom:16px;}
+  .no-print{display:none !important;}
+  .table-scroll{overflow:visible;}
+  table{font-size:12px;}
+}
+#printTitle{display:none;}
