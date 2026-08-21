@@ -131,54 +131,112 @@
         <button class="logout" id="logoutBtn">Logga ut</button>
       </div>
 
-      <div class="card adm-section">
-        <h3 class="sectionTitle">Lägg till aktivitet</h3>
-        <p class="sub">Skapa en ny aktivitet. Välj en eller flera grupper den passar för.</p>
-        <div class="toolbar">
-          <div class="field">
-            <label>Namn</label>
-            <input type="text" id="newActName" placeholder="t.ex. Pyssel">
-          </div>
-          <div class="field">
-            <label>Tid</label>
-            <input type="text" id="newActSchedule" placeholder="t.ex. Måndag 15:00–16:15">
-          </div>
-          <div class="field maxfield">
-            <label>Max platser</label>
-            <input type="number" id="newActMax" placeholder="valfritt" min="1">
-          </div>
-          <button class="btn small" id="addActBtn">Lägg till</button>
-        </div>
-        <label>Grupper (välj en eller flera)</label>
-        <div class="radio-row" id="newActStadiums">
-          <label class="radio-pill"><input type="checkbox" value="lag"> Lågstadiet</label>
-          <label class="radio-pill"><input type="checkbox" value="mellan"> Mellanstadiet</label>
-          <label class="radio-pill"><input type="checkbox" value="hog"> Högstadiet</label>
-          <label class="radio-pill"><input type="checkbox" value="utflykt"> Utflykter</label>
-          <label class="radio-pill"><input type="checkbox" value="familj"> Familjeaktivitet</label>
-        </div>
-        <p class="err" id="newAct-err"></p>
+      <div class="adm-subtabs">
+        <button class="subtabbtn active" data-subtab="activities">Aktiviteter</button>
+        <button class="subtabbtn" data-subtab="buddies">Veckans kompis</button>
+        <button class="subtabbtn" data-subtab="participants">Deltagare</button>
+        <button class="subtabbtn" data-subtab="stats">Statistik</button>
       </div>
 
-      <div class="card adm-section" id="pendingWrap">
-        <h3 class="sectionTitle">Väntande ansökningar</h3>
-        <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet.</p>
-        <div id="pendingApps"></div>
+      <div id="adm-sub-activities" class="adm-subview active">
+        <div class="card adm-section">
+          <h3 class="sectionTitle">Lägg till aktivitet</h3>
+          <p class="sub">Skapa en ny aktivitet. Välj en eller flera grupper den passar för.</p>
+          <div class="toolbar">
+            <div class="field">
+              <label>Namn</label>
+              <input type="text" id="newActName" placeholder="t.ex. Pyssel">
+            </div>
+            <div class="field">
+              <label>Tid</label>
+              <input type="text" id="newActSchedule" placeholder="t.ex. Måndag 15:00–16:15">
+            </div>
+            <div class="field maxfield">
+              <label>Max platser</label>
+              <input type="number" id="newActMax" placeholder="valfritt" min="1">
+            </div>
+            <button class="btn small" id="addActBtn">Lägg till</button>
+          </div>
+          <label>Grupper (välj en eller flera)</label>
+          <div class="radio-row" id="newActStadiums">
+            <label class="radio-pill"><input type="checkbox" value="lag"> Lågstadiet</label>
+            <label class="radio-pill"><input type="checkbox" value="mellan"> Mellanstadiet</label>
+            <label class="radio-pill"><input type="checkbox" value="hog"> Högstadiet</label>
+            <label class="radio-pill"><input type="checkbox" value="utflykt"> Utflykter</label>
+            <label class="radio-pill"><input type="checkbox" value="familj"> Familjeaktivitet</label>
+          </div>
+          <label>Skola <span class="optional">(lämna tomt = alla skolor på avdelningen)</span></label>
+          <div class="radio-row" id="newActSchools"></div>
+          <p class="err" id="newAct-err"></p>
+        </div>
+
+        <div class="card adm-section" id="pendingWrap">
+          <h3 class="sectionTitle">Väntande ansökningar</h3>
+          <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet.</p>
+          <div id="pendingApps"></div>
+        </div>
+
+        <div class="adm-section" id="adminActivities"></div>
       </div>
 
-      <div class="adm-section" id="adminActivities"></div>
-
-      <div class="card adm-section" id="deltagarlistaWrap">
-        <div class="adm-topbar" style="margin-bottom:4px;">
-          <h3 class="sectionTitle" style="margin:0;">Deltagare &amp; kontaktuppgifter</h3>
-          <div style="margin-left:auto;display:flex;gap:10px;">
-            <button class="rowbtn" id="printListBtn">Skriv ut</button>
-            <button class="rowbtn" id="clearRegsBtn">Rensa alla anmälningar</button>
+      <div id="adm-sub-buddies" class="adm-subview">
+        <div class="card adm-section" id="buddiesWrap">
+          <h3 class="sectionTitle">Veckans kompis</h3>
+          <p class="sub">Upp till 10 ledare, varje ledare lägger till 3 "veckans kompis" per vecka: namn, anledning och föräldrarnas respons.</p>
+          <div class="toolbar">
+            <div class="field">
+              <label>Ledarens namn</label>
+              <input type="text" id="newLeaderName" placeholder="t.ex. Anna">
+            </div>
+            <button class="btn small" id="addLeaderBtn">Lägg till ledare</button>
           </div>
+          <p class="err" id="newLeader-err"></p>
+          <div id="leadersList"></div>
         </div>
-        <p class="sub">Alla anmälda, uppdelade per årskursgrupp. Sök eller ring direkt via telefonnumret.</p>
-        <input type="text" id="contactSearch" placeholder="Sök på namn eller klass...">
-        <div id="deltagarlista"></div>
+      </div>
+
+      <div id="adm-sub-participants" class="adm-subview">
+        <div class="card adm-section" id="deltagarlistaWrap">
+          <div class="adm-topbar" style="margin-bottom:4px;">
+            <h3 class="sectionTitle" style="margin:0;">Deltagare &amp; kontaktuppgifter</h3>
+            <div style="margin-left:auto;display:flex;gap:10px;">
+              <button class="rowbtn" id="printListBtn">Skriv ut</button>
+              <button class="rowbtn" id="clearRegsBtn">Rensa alla anmälningar</button>
+            </div>
+          </div>
+          <p class="sub">Alla anmälda, uppdelade per årskursgrupp. Sök eller ring direkt via telefonnumret.</p>
+          <input type="text" id="contactSearch" placeholder="Sök på namn eller klass...">
+          <div id="deltagarlista"></div>
+        </div>
+      </div>
+
+      <div id="adm-sub-stats" class="adm-subview">
+        <div class="card adm-section" id="statsWrap">
+          <h3 class="sectionTitle">Statistik</h3>
+          <p class="sub">Fyll i antal deltagare och ledare per aktivitet/tillfälle. Du kan skriva in aktiviteter som inte finns som en aktuell aktivitet.</p>
+          <div class="toolbar">
+            <div class="field">
+              <label>Aktivitet/tillfälle</label>
+              <input type="text" id="statLabel" list="statActivityOptions" placeholder="t.ex. Pyssel, eller något eget">
+              <datalist id="statActivityOptions"></datalist>
+            </div>
+            <div class="field maxfield">
+              <label>Datum</label>
+              <input type="date" id="statDate">
+            </div>
+          </div>
+          <div class="toolbar">
+            <div class="field maxfield"><label>Pojkar</label><input type="number" id="statBoys" min="0" placeholder="0"></div>
+            <div class="field maxfield"><label>Flickor</label><input type="number" id="statGirls" min="0" placeholder="0"></div>
+            <div class="field maxfield"><label>Ledare, kvinnor</label><input type="number" id="statLeaderWomen" min="0" placeholder="0"></div>
+            <div class="field maxfield"><label>Ledare, män</label><input type="number" id="statLeaderMen" min="0" placeholder="0"></div>
+            <button class="btn small" id="addStatBtn">Lägg till</button>
+          </div>
+          <p class="err" id="newStat-err"></p>
+
+          <div id="statsSummary" class="stats-summary"></div>
+          <div id="statsTable"></div>
+        </div>
       </div>
     </div>
   </div>
