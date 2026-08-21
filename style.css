@@ -591,3 +591,93 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
   table{font-size:12px;}
 }
 #printTitle{display:none;}
+
+/* ---------- Skola på aktivitet ---------- */
+
+.act-school-row{
+  padding:8px 16px;
+  background:#fff;
+  border-bottom:1px solid var(--line);
+  font-size:13px;
+  color:var(--text-soft);
+}
+.act-school-row b{color:var(--navy);}
+
+/* ---------- Veckans kompis ---------- */
+
+.leader-card{
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  margin-bottom:14px;
+  overflow:hidden;
+  background:#fff;
+}
+.leader-card:last-child{margin-bottom:0;}
+.buddy-add-form{border-top:none;}
+.buddy-entries{padding:4px 16px 12px;}
+.buddy-entry{
+  border-top:1px solid var(--blue-pale);
+  padding:10px 0;
+}
+.buddy-entry:first-child{border-top:none;}
+.buddy-entry-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:4px;
+}
+.buddy-name{font-weight:700;color:var(--navy);}
+.buddy-entry-head .rowbtn{margin-left:auto;}
+.buddy-entry-detail{font-size:13px;color:var(--text);margin-top:2px;}
+.buddy-entry-detail b{color:var(--text-soft);font-weight:700;}
+
+/* ---------- Admin under-flikar ---------- */
+
+.adm-subtabs{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-bottom:20px;
+  border-bottom:1.5px solid var(--line);
+  padding-bottom:0;
+}
+.subtabbtn{
+  background:none;
+  border:none;
+  border-bottom:3px solid transparent;
+  color:var(--text-soft);
+  padding:10px 6px;
+  font-family:'Baloo 2',sans-serif;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  margin-bottom:-1.5px;
+}
+.subtabbtn.active{color:var(--blue);border-bottom-color:var(--blue);}
+.adm-subview{display:none;}
+.adm-subview.active{display:block;}
+
+/* ---------- Statistik ---------- */
+
+.stats-summary{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));
+  gap:10px;
+  margin:20px 0;
+}
+.stat-box{
+  background:var(--blue-pale);
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  text-align:center;
+}
+.stat-box .num{
+  font-family:'Baloo 2',sans-serif;
+  font-size:24px;
+  font-weight:700;
+  color:var(--navy);
+  display:block;
+}
+.stat-box .lbl{font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
