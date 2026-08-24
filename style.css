@@ -581,16 +581,25 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
 
 /* ---------- Utskrift ---------- */
 
+.print-only{display:none;}
+
 @media print{
-  body *{visibility:hidden;}
-  #deltagarlista, #deltagarlista *{visibility:visible;}
-  #deltagarlista{position:absolute;left:0;top:0;width:100%;}
+  body.printing-participants *{visibility:hidden;}
+  body.printing-participants #deltagarlista, body.printing-participants #deltagarlista *{visibility:visible;}
+  body.printing-participants #deltagarlista{position:absolute;left:0;top:0;width:100%;}
+
+  body.printing-stats *{visibility:hidden;}
+  body.printing-stats #statsPrintArea, body.printing-stats #statsPrintArea *{visibility:visible;}
+  body.printing-stats #statsPrintArea{position:absolute;left:0;top:0;width:100%;display:block;}
+
   #printTitle{display:block !important;margin-bottom:16px;}
+  .printTitle{display:block !important;margin-bottom:16px;}
   .no-print{display:none !important;}
   .table-scroll{overflow:visible;}
   table{font-size:12px;}
 }
 #printTitle{display:none;}
+.printTitle{display:none;}
 
 /* ---------- Skola på aktivitet ---------- */
 
@@ -681,3 +690,84 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
   display:block;
 }
 .stat-box .lbl{font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+
+/* ---------- Valideringsfel ---------- */
+
+input.field-error, select.field-error, textarea.field-error{
+  border-color: var(--danger) !important;
+  background: var(--danger-light) !important;
+}
+div.field-error{
+  border: 1.5px solid var(--danger);
+  border-radius: 12px;
+  padding: 8px;
+  background: var(--danger-light);
+}
+
+/* ---------- Statistikgrupper (kategoriserat per aktivitet) ---------- */
+
+.stat-group{margin-bottom:28px;}
+.stat-group:last-child{margin-bottom:0;}
+.stats-summary-small{
+  grid-template-columns:repeat(auto-fit, minmax(90px, 1fr));
+  margin:10px 0 14px;
+}
+.stats-summary-small .stat-box{padding:8px 10px;}
+.stats-summary-small .num{font-size:18px;}
+
+/* ---------- Att göra (post-it-lappar) ---------- */
+
+.todo-board{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
+  gap:16px;
+  margin-top:20px;
+}
+.todo-note{
+  position:relative;
+  background:var(--blue-light);
+  border:1.5px solid var(--blue);
+  border-radius:4px 4px 10px 10px;
+  padding:16px 14px 12px;
+  box-shadow:0 4px 10px rgba(18,49,79,0.10);
+  transform:rotate(-1deg);
+  transition:transform .15s ease;
+}
+.todo-note:nth-child(3n+2){transform:rotate(1deg);background:var(--blue-pale);}
+.todo-note:nth-child(3n){transform:rotate(-0.5deg);background:#fff;}
+.todo-note:hover{transform:rotate(0deg) scale(1.02);}
+.todo-note::before{
+  content:"";
+  position:absolute;
+  top:-8px;
+  left:50%;
+  transform:translateX(-50%) rotate(-4deg);
+  width:34px;
+  height:14px;
+  background:rgba(244,169,59,0.55);
+  border:1px solid rgba(244,169,59,0.7);
+}
+.todo-note-remove{
+  position:absolute;
+  top:6px;
+  right:8px;
+  background:none;
+  border:none;
+  color:var(--navy-2);
+  opacity:.5;
+  cursor:pointer;
+  font-size:14px;
+  line-height:1;
+  padding:4px;
+}
+.todo-note-remove:hover{opacity:1;color:var(--danger);}
+.todo-note-title{
+  font-family:'Baloo 2',sans-serif;
+  font-weight:700;
+  color:var(--navy);
+  font-size:15px;
+  margin:4px 0 6px;
+  padding-right:16px;
+}
+.todo-note-desc{font-size:13px;color:var(--text);line-height:1.4;margin-bottom:10px;white-space:pre-wrap;}
+.todo-note-date{font-size:11px;color:var(--text-soft);font-weight:600;}
