@@ -8,15 +8,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 const BRANCHES = [
-  { id: "holma", name: "Holma/Kroksbäck" },
-  { id: "hermodsdal", name: "Hermodsdal" }
+  { id: "holma", name: "Holma/Kroksbäck" }
 ];
 const CURRENT_BRANCH_KEY = "fg-current-branch";
 
-// OBS: skolor för Hermodsdal är en gissning (Hermodsdalsskolan) - byt/lägg till vid behov.
 const SCHOOLS_BY_BRANCH = {
-  holma: ["Holmaskolan", "Kroksbäckskolan"],
-  hermodsdal: ["Hermodsdalsskolan"]
+  holma: ["Holmaskolan", "Kroksbäckskolan"]
 };
 
 const STADIUMS = [
@@ -32,16 +29,25 @@ const registrationsCol = collection(db, "registrations");
 const leadersCol = collection(db, "leaders");
 const buddiesCol = collection(db, "buddies");
 const statsCol = collection(db, "stats");
+const todosCol = collection(db, "todos");
 
-let activitiesByBranch = { holma: [], hermodsdal: [] };
-let registrationsByBranch = { holma: [], hermodsdal: [] };
-let leadersByBranch = { holma: [], hermodsdal: [] };
-let buddiesByBranch = { holma: [], hermodsdal: [] };
-let statsByBranch = { holma: [], hermodsdal: [] };
+function emptyGroups(){
+  const o = {};
+  BRANCHES.forEach(b => o[b.id] = []);
+  return o;
+}
+
+let activitiesByBranch = emptyGroups();
+let registrationsByBranch = emptyGroups();
+let leadersByBranch = emptyGroups();
+let buddiesByBranch = emptyGroups();
+let statsByBranch = emptyGroups();
+let todosByBranch = emptyGroups();
 let unsubscribeRegs = null;
 let unsubscribeLeaders = null;
 let unsubscribeBuddies = null;
 let unsubscribeStats = null;
+let unsubscribeTodos = null;
 
 let currentBranch = localStorage.getItem(CURRENT_BRANCH_KEY) || BRANCHES[0].id;
 if(!BRANCHES.some(b => b.id === currentBranch)) currentBranch = BRANCHES[0].id;
@@ -91,7 +97,7 @@ function actStadiums(a){
 /* ---------- Live-synk mot Firestore ---------- */
 
 onSnapshot(activitiesCol, snap => {
-  const grouped = { holma: [], hermodsdal: [] };
+  const grouped = emptyGroups();
   snap.forEach(d => {
     const data = { id: d.id, ...d.data() };
     if(!grouped[data.branch]) grouped[data.branch] = [];
@@ -104,7 +110,7 @@ onSnapshot(activitiesCol, snap => {
 function startRegistrationsListener(){
   if(unsubscribeRegs) return;
   unsubscribeRegs = onSnapshot(registrationsCol, snap => {
-    const grouped = { holma: [], hermodsdal: [] };
+    const grouped = emptyGroups();
     snap.forEach(d => {
       const data = { id: d.id, ...d.data() };
       if(!grouped[data.branch]) grouped[data.branch] = [];
@@ -116,13 +122,13 @@ function startRegistrationsListener(){
 }
 function stopRegistrationsListener(){
   if(unsubscribeRegs){ unsubscribeRegs(); unsubscribeRegs = null; }
-  registrationsByBranch = { holma: [], hermodsdal: [] };
+  registrationsByBranch = emptyGroups();
 }
 
 function startLeadersAndBuddiesListeners(){
   if(!unsubscribeLeaders){
     unsubscribeLeaders = onSnapshot(leadersCol, snap => {
-      const grouped = { holma: [], hermodsdal: [] };
+      const grouped = emptyGroups();
       snap.forEach(d => {
         const data = { id: d.id, ...d.data() };
         if(!grouped[data.branch]) grouped[data.branch] = [];
@@ -134,7 +140,7 @@ function startLeadersAndBuddiesListeners(){
   }
   if(!unsubscribeBuddies){
     unsubscribeBuddies = onSnapshot(buddiesCol, snap => {
-      const grouped = { holma: [], hermodsdal: [] };
+      const grouped = emptyGroups();
       snap.forEach(d => {
         const data = { id: d.id, ...d.data() };
         if(!grouped[data.branch]) grouped[data.branch] = [];
@@ -146,7 +152,7 @@ function startLeadersAndBuddiesListeners(){
   }
   if(!unsubscribeStats){
     unsubscribeStats = onSnapshot(statsCol, snap => {
-      const grouped = { holma: [], hermodsdal: [] };
+      const grouped = emptyGroups();
       snap.forEach(d => {
         const data = { id: d.id, ...d.data() };
         if(!grouped[data.branch]) grouped[data.branch] = [];
@@ -156,14 +162,28 @@ function startLeadersAndBuddiesListeners(){
       rerenderAll();
     }, err => console.error("stats snapshot error:", err));
   }
+  if(!unsubscribeTodos){
+    unsubscribeTodos = onSnapshot(todosCol, snap => {
+      const grouped = emptyGroups();
+      snap.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        if(!grouped[data.branch]) grouped[data.branch] = [];
+        grouped[data.branch].push(data);
+      });
+      todosByBranch = grouped;
+      rerenderAll();
+    }, err => console.error("todos snapshot error:", err));
+  }
 }
 function stopLeadersAndBuddiesListeners(){
   if(unsubscribeLeaders){ unsubscribeLeaders(); unsubscribeLeaders = null; }
   if(unsubscribeBuddies){ unsubscribeBuddies(); unsubscribeBuddies = null; }
   if(unsubscribeStats){ unsubscribeStats(); unsubscribeStats = null; }
-  leadersByBranch = { holma: [], hermodsdal: [] };
-  buddiesByBranch = { holma: [], hermodsdal: [] };
-  statsByBranch = { holma: [], hermodsdal: [] };
+  if(unsubscribeTodos){ unsubscribeTodos(); unsubscribeTodos = null; }
+  leadersByBranch = emptyGroups();
+  buddiesByBranch = emptyGroups();
+  statsByBranch = emptyGroups();
+  todosByBranch = emptyGroups();
 }
 
 function rerenderAll(){
@@ -201,6 +221,7 @@ function activityMatchesSchool(a, school){
 function leadersFor(branchId){ return leadersByBranch[branchId] || []; }
 function buddiesFor(branchId){ return buddiesByBranch[branchId] || []; }
 function statsFor(branchId){ return (statsByBranch[branchId] || []).slice().sort((a,b) => (b.date || '').localeCompare(a.date || '') || b.ts - a.ts); }
+function todosFor(branchId){ return (todosByBranch[branchId] || []).slice().sort((a,b) => b.ts - a.ts); }
 function buddiesForLeader(branchId, leaderId){
   return buddiesFor(branchId).filter(b => b.leaderId === leaderId).sort((a,b) => b.ts - a.ts);
 }
@@ -209,6 +230,11 @@ function currentWeekKey(ts){
   const onejan = new Date(d.getFullYear(), 0, 1);
   const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
   return d.getFullYear() + "-W" + week;
+}
+function weekLabel(ts){
+  const wk = currentWeekKey(ts);
+  const [year, wpart] = wk.split("-W");
+  return "v." + wpart + " " + year;
 }
 
 // Håller det publika räknefältet i synk med verkliga placeringar. Körs vid
@@ -234,6 +260,11 @@ function updateHeaderForAdminBranch(){
 
 function renderBranchSwitch(){
   const wrap = document.getElementById("branchSwitch");
+  if(BRANCHES.length <= 1){
+    wrap.innerHTML = "";
+    wrap.classList.remove("visible");
+    return;
+  }
   wrap.innerHTML = BRANCHES.map(b =>
     `<button class="branchbtn ${b.id === currentBranch ? 'active' : ''}" data-branch="${b.id}">${escapeHtml(b.name)}</button>`
   ).join("");
@@ -252,6 +283,10 @@ function renderBranchSwitch(){
 /* ---------- Anmälningssida ---------- */
 
 function renderGate(){
+  if(BRANCHES.length === 1){
+    selectSignupBranch(BRANCHES[0].id);
+    return;
+  }
   const wrap = document.getElementById("gateBtns");
   wrap.innerHTML = BRANCHES.map(b =>
     `<button class="gate-btn" data-branch="${b.id}">${escapeHtml(b.name)}</button>`
@@ -274,6 +309,7 @@ function selectSignupBranch(branchId){
   document.getElementById("signupContent").style.display = "block";
   document.getElementById("signupBranchLabel").textContent = branchInfo(branchId).name;
   document.getElementById("actListSub").textContent = "Så här ser det ut just nu hos " + branchInfo(branchId).name + ".";
+  document.querySelector(".signup-branch-bar").style.display = BRANCHES.length <= 1 ? "none" : "flex";
   renderSchoolSelect();
   renderActivityChecks();
   renderActList();
@@ -345,25 +381,20 @@ function renderActivityChecks(){
 document.getElementById("s-grade").addEventListener("change", renderActivityChecks);
 document.getElementById("s-school").addEventListener("change", renderActivityChecks);
 
-function renderActList(){
-  const wrap = document.getElementById("actList");
-  wrap.innerHTML = "";
-  if(!signupBranch) return;
-  const branchActs = acts(signupBranch);
-  if(!branchActs.length){
-    wrap.innerHTML = '<p class="empty">Inga aktiviteter är tillagda ännu.</p>';
-    return;
-  }
+function buildStadiumSections(branchId, school){
+  const frag = document.createDocumentFragment();
+  let any = false;
   STADIUMS.forEach(st => {
-    const stActs = activitiesForStadium(signupBranch, st.id);
+    const stActs = activitiesForStadium(branchId, st.id).filter(a => activityMatchesSchool(a, school));
     if(!stActs.length) return;
+    any = true;
     const group = document.createElement("div");
     group.className = "stadium-group";
     group.innerHTML = `<h4 class="stadium-heading">${st.label} <span class="muted">(${st.sub})</span></h4>`;
     const list = document.createElement("div");
     list.className = "act-list";
     stActs.forEach(a => {
-      const count = displayCount(signupBranch, a.id);
+      const count = displayCount(branchId, a.id);
       const full = a.maxSpots && count >= a.maxSpots;
       const div = document.createElement("div");
       div.className = "act-card";
@@ -375,8 +406,44 @@ function renderActList(){
       list.appendChild(div);
     });
     group.appendChild(list);
-    wrap.appendChild(group);
+    frag.appendChild(group);
   });
+  return { frag, any };
+}
+
+function renderActList(){
+  const wrap = document.getElementById("actList");
+  wrap.innerHTML = "";
+  if(!signupBranch) return;
+  const branchActs = acts(signupBranch);
+  if(!branchActs.length){
+    wrap.innerHTML = '<p class="empty">Inga aktiviteter är tillagda ännu.</p>';
+    return;
+  }
+  const schools = SCHOOLS_BY_BRANCH[signupBranch] || [];
+  if(schools.length > 1){
+    let anyAtAll = false;
+    schools.forEach(school => {
+      const { frag, any } = buildStadiumSections(signupBranch, school);
+      if(!any) return;
+      anyAtAll = true;
+      const schoolGroup = document.createElement("div");
+      schoolGroup.className = "branch-group";
+      schoolGroup.innerHTML = `<h3 class="branch-heading">${escapeHtml(school)}</h3>`;
+      schoolGroup.appendChild(frag);
+      wrap.appendChild(schoolGroup);
+    });
+    if(!anyAtAll){
+      wrap.innerHTML = '<p class="empty">Inga aktiviteter är tillagda ännu.</p>';
+    }
+  }else{
+    const { frag, any } = buildStadiumSections(signupBranch, schools[0] || null);
+    if(!any){
+      wrap.innerHTML = '<p class="empty">Inga aktiviteter är tillagda ännu.</p>';
+    }else{
+      wrap.appendChild(frag);
+    }
+  }
 }
 
 function showTicket(branchName, data, wishNames){
@@ -404,10 +471,25 @@ function showTicket(branchName, data, wishNames){
     </div>`;
 }
 
+const REQUIRED_SIGNUP_FIELDS = ["s-name", "s-school", "s-grade", "s-class", "s-parentname", "s-parentphone"];
+
+function clearFieldErrors(){
+  REQUIRED_SIGNUP_FIELDS.forEach(id => document.getElementById(id).classList.remove("field-error"));
+  document.getElementById("s-gender").classList.remove("field-error");
+  document.getElementById("s-activities").classList.remove("field-error");
+}
+
+document.getElementById("signupForm").addEventListener("input", (e) => {
+  e.target.classList.remove("field-error");
+  const wrap = e.target.closest(".radio-row, .activity-checks");
+  if(wrap) wrap.classList.remove("field-error");
+});
+
 document.getElementById("signupForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const err = document.getElementById("s-err");
   err.style.display = "none";
+  clearFieldErrors();
 
   const childName = document.getElementById("s-name").value.trim();
   const genderInput = document.querySelector('input[name="gender"]:checked');
@@ -422,9 +504,25 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   const otherInfo = document.getElementById("s-other").value.trim();
   const wishActivityIds = Array.from(document.querySelectorAll('#s-activities input[type="checkbox"]:checked')).map(c => c.value);
 
-  if(!childName || !gender || !school || !grade || !klass || !parentName || !parentPhone || !wishActivityIds.length){
-    err.textContent = "Fyll i barnets namn, kön, skola, årskurs, klass, förälders namn och telefonnummer, och välj minst en aktivitet.";
+  let firstInvalid = null;
+  function invalid(id){
+    const el = document.getElementById(id);
+    el.classList.add("field-error");
+    if(!firstInvalid) firstInvalid = el;
+  }
+  if(!childName) invalid("s-name");
+  if(!gender) invalid("s-gender");
+  if(!school) invalid("s-school");
+  if(!grade) invalid("s-grade");
+  if(!klass) invalid("s-class");
+  if(!parentName) invalid("s-parentname");
+  if(!parentPhone) invalid("s-parentphone");
+  if(!wishActivityIds.length) invalid("s-activities");
+
+  if(firstInvalid){
+    err.textContent = "Fyll i de markerade fälten innan du skickar ansökan.";
     err.style.display = "block";
+    firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
 
@@ -519,6 +617,7 @@ document.getElementById("clearRegsBtn").addEventListener("click", async () => {
 /* ---------- Skriv ut deltagarlista ---------- */
 
 document.getElementById("printListBtn").addEventListener("click", () => {
+  document.body.classList.add("printing-participants");
   window.print();
 });
 
@@ -808,6 +907,7 @@ function renderAdmin(){
   renderDeltagarlista();
   renderBuddies();
   renderStats();
+  renderTodos();
 }
 
 document.getElementById("contactSearch").addEventListener("input", (e) => {
@@ -820,7 +920,7 @@ function renderDeltagarlista(){
   wrap.innerHTML = "";
 
   const printTitle = document.createElement("h3");
-  printTitle.id = "printTitle";
+  printTitle.className = "printTitle";
   printTitle.textContent = "Deltagarlista · " + branchInfo(currentBranch).name + " · " + new Date().toLocaleDateString('sv-SE');
   wrap.appendChild(printTitle);
 
@@ -928,6 +1028,7 @@ function renderBuddies(){
           <div class="buddy-entry" data-buddy="${b.id}">
             <div class="buddy-entry-head">
               <span class="buddy-name">${escapeHtml(b.buddyName)}</span>
+              <span class="badge ok">${weekLabel(b.ts)}</span>
               <span class="muted">${new Date(b.ts).toLocaleDateString('sv-SE')}</span>
               <button class="rowbtn" data-buddy-remove="${b.id}">Ta bort</button>
             </div>
@@ -941,7 +1042,7 @@ function renderBuddies(){
         <div class="adm-act-head">
           <div>
             <span class="name">${escapeHtml(leader.name)}</span>
-            <span class="count badge ${weekCount >= 3 ? 'ok' : 'full'}"> ${weekCount}/3 denna vecka</span>
+            <span class="count badge ${weekCount >= 3 ? 'ok' : 'full'}"> ${weekCount}/3 denna vecka (${weekLabel(Date.now())})</span>
           </div>
           <button class="del-x" data-leader-remove="${leader.id}" title="Ta bort ledare" aria-label="Ta bort ledare">✕</button>
         </div>
@@ -1012,8 +1113,8 @@ document.getElementById("addStatBtn").addEventListener("click", async () => {
   const dateInp = document.getElementById("statDate");
   const boysInp = document.getElementById("statBoys");
   const girlsInp = document.getElementById("statGirls");
-  const lwInp = document.getElementById("statLeaderWomen");
-  const lmInp = document.getElementById("statLeaderMen");
+  const womenInp = document.getElementById("statWomen");
+  const menInp = document.getElementById("statMen");
   const err = document.getElementById("newStat-err");
   err.style.display = "none";
 
@@ -1025,14 +1126,14 @@ document.getElementById("addStatBtn").addEventListener("click", async () => {
   }
   const boys = parseInt(boysInp.value, 10) || 0;
   const girls = parseInt(girlsInp.value, 10) || 0;
-  const leaderWomen = parseInt(lwInp.value, 10) || 0;
-  const leaderMen = parseInt(lmInp.value, 10) || 0;
+  const women = parseInt(womenInp.value, 10) || 0;
+  const men = parseInt(menInp.value, 10) || 0;
   const date = dateInp.value || new Date().toISOString().slice(0, 10);
 
   try{
     await addDoc(statsCol, {
       branch: currentBranch, label, date,
-      boys, girls, leaderWomen, leaderMen,
+      boys, girls, women, men,
       ts: Date.now()
     });
   }catch(e){
@@ -1044,44 +1145,19 @@ document.getElementById("addStatBtn").addEventListener("click", async () => {
   labelInp.value = "";
   boysInp.value = "";
   girlsInp.value = "";
-  lwInp.value = "";
-  lmInp.value = "";
+  womenInp.value = "";
+  menInp.value = "";
 });
 
-function renderStats(){
-  renderStatActivityOptions();
-  const entries = statsFor(currentBranch);
+function entryTotal(e){
+  return (e.boys || 0) + (e.girls || 0) + (e.women || 0) + (e.men || 0);
+}
 
-  const totals = entries.reduce((t, e) => {
-    t.boys += e.boys || 0;
-    t.girls += e.girls || 0;
-    t.leaderWomen += e.leaderWomen || 0;
-    t.leaderMen += e.leaderMen || 0;
-    return t;
-  }, { boys: 0, girls: 0, leaderWomen: 0, leaderMen: 0 });
-  const participantsTotal = totals.boys + totals.girls;
-  const leadersTotal = totals.leaderWomen + totals.leaderMen;
-
-  const summary = document.getElementById("statsSummary");
-  summary.innerHTML = `
-    <div class="stat-box"><span class="num">${entries.length}</span><span class="lbl">Tillfällen</span></div>
-    <div class="stat-box"><span class="num">${participantsTotal}</span><span class="lbl">Deltagare totalt</span></div>
-    <div class="stat-box"><span class="num">${totals.boys}</span><span class="lbl">Pojkar</span></div>
-    <div class="stat-box"><span class="num">${totals.girls}</span><span class="lbl">Flickor</span></div>
-    <div class="stat-box"><span class="num">${leadersTotal}</span><span class="lbl">Ledare totalt</span></div>
-    <div class="stat-box"><span class="num">${totals.leaderWomen}</span><span class="lbl">Ledare, kvinnor</span></div>
-    <div class="stat-box"><span class="num">${totals.leaderMen}</span><span class="lbl">Ledare, män</span></div>
-  `;
-
-  const tableWrap = document.getElementById("statsTable");
-  if(!entries.length){
-    tableWrap.innerHTML = '<p class="empty">Ingen statistik tillagd ännu.</p>';
-    return;
-  }
-  tableWrap.innerHTML = `
+function statsTableHtml(entries, showActions){
+  return `
     <div class="table-scroll">
     <table>
-      <thead><tr><th>Datum</th><th>Aktivitet/tillfälle</th><th>Pojkar</th><th>Flickor</th><th>Deltagare</th><th>Ledare kvinnor</th><th>Ledare män</th><th>Ledare totalt</th><th></th></tr></thead>
+      <thead><tr><th>Datum</th><th>Aktivitet/tillfälle</th><th>Pojkar</th><th>Flickor</th><th>Kvinnor</th><th>Män</th><th>Totalt</th>${showActions ? '<th class="no-print"></th>' : ''}</tr></thead>
       <tbody>
         ${entries.map(e => `
           <tr>
@@ -1089,20 +1165,147 @@ function renderStats(){
             <td>${escapeHtml(e.label)}</td>
             <td>${e.boys || 0}</td>
             <td>${e.girls || 0}</td>
-            <td><b>${(e.boys || 0) + (e.girls || 0)}</b></td>
-            <td>${e.leaderWomen || 0}</td>
-            <td>${e.leaderMen || 0}</td>
-            <td><b>${(e.leaderWomen || 0) + (e.leaderMen || 0)}</b></td>
-            <td><button class="rowbtn" data-stat-remove="${e.id}">Ta bort</button></td>
+            <td>${e.women || 0}</td>
+            <td>${e.men || 0}</td>
+            <td><b>${entryTotal(e)}</b></td>
+            ${showActions ? `<td class="no-print"><button class="rowbtn" data-stat-remove="${e.id}">Ta bort</button></td>` : ''}
           </tr>`).join("")}
       </tbody>
     </table>
     </div>`;
+}
+
+function summaryBoxesHtml(entries){
+  const totals = entries.reduce((t, e) => {
+    t.boys += e.boys || 0;
+    t.girls += e.girls || 0;
+    t.women += e.women || 0;
+    t.men += e.men || 0;
+    return t;
+  }, { boys: 0, girls: 0, women: 0, men: 0 });
+  const total = totals.boys + totals.girls + totals.women + totals.men;
+  return `
+    <div class="stat-box"><span class="num">${entries.length}</span><span class="lbl">Tillfällen</span></div>
+    <div class="stat-box"><span class="num">${total}</span><span class="lbl">Deltagare totalt</span></div>
+    <div class="stat-box"><span class="num">${totals.boys}</span><span class="lbl">Pojkar</span></div>
+    <div class="stat-box"><span class="num">${totals.girls}</span><span class="lbl">Flickor</span></div>
+    <div class="stat-box"><span class="num">${totals.women}</span><span class="lbl">Kvinnor</span></div>
+    <div class="stat-box"><span class="num">${totals.men}</span><span class="lbl">Män</span></div>
+  `;
+}
+
+function renderStats(){
+  renderStatActivityOptions();
+  const entries = statsFor(currentBranch);
+
+  const summary = document.getElementById("statsSummary");
+  summary.innerHTML = summaryBoxesHtml(entries);
+
+  const tableWrap = document.getElementById("statsTable");
+  const printArea = document.getElementById("statsPrintArea");
+  if(!entries.length){
+    tableWrap.innerHTML = '<p class="empty">Ingen statistik tillagd ännu.</p>';
+    printArea.innerHTML = "";
+    return;
+  }
+
+  // Kategorisera per aktivitet/tillfälle, alfabetiskt, med delsumma per grupp.
+  const byLabel = {};
+  entries.forEach(e => {
+    if(!byLabel[e.label]) byLabel[e.label] = [];
+    byLabel[e.label].push(e);
+  });
+  const labels = Object.keys(byLabel).sort((a, b) => a.localeCompare(b, 'sv'));
+
+  const groupsHtml = labels.map(label => {
+    const group = byLabel[label];
+    const sub = summaryBoxesHtml(group);
+    return `
+      <div class="stat-group">
+        <h4 class="stadium-heading">${escapeHtml(label)} <span class="muted">(${group.length} tillfällen)</span></h4>
+        <div class="stats-summary stats-summary-small">${sub}</div>
+        ${statsTableHtml(group, true)}
+      </div>`;
+  }).join("");
+
+  tableWrap.innerHTML = groupsHtml;
 
   tableWrap.querySelectorAll("[data-stat-remove]").forEach(b => {
     b.addEventListener("click", async () => {
       if(!confirm("Ta bort den här statistikposten?")) return;
       await deleteDoc(doc(db, "stats", b.dataset.statRemove));
+    });
+  });
+
+  // Bygg en ren utskriftsversion (samma kategorisering, utan knappar).
+  printArea.innerHTML = `
+    <h3 class="printTitle">Statistik · ${escapeHtml(branchInfo(currentBranch).name)} · ${new Date().toLocaleDateString('sv-SE')}</h3>
+    <div class="stats-summary">${summaryBoxesHtml(entries)}</div>
+    ${labels.map(label => {
+      const group = byLabel[label];
+      return `
+        <h4 class="stadium-heading">${escapeHtml(label)} <span class="muted">(${group.length} tillfällen)</span></h4>
+        ${statsTableHtml(group, false)}`;
+    }).join("")}
+  `;
+}
+
+document.getElementById("printStatsBtn").addEventListener("click", () => {
+  document.body.classList.add("printing-stats");
+  window.print();
+});
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("printing-stats", "printing-participants");
+});
+
+/* ---------- Att göra ---------- */
+
+document.getElementById("addTodoBtn").addEventListener("click", async () => {
+  const titleInp = document.getElementById("newTodoTitle");
+  const descInp = document.getElementById("newTodoDesc");
+  const err = document.getElementById("newTodo-err");
+  err.style.display = "none";
+  const title = titleInp.value.trim();
+  if(!title){
+    err.textContent = "Ange en uppgift.";
+    err.style.display = "block";
+    return;
+  }
+  try{
+    await addDoc(todosCol, {
+      branch: currentBranch,
+      title,
+      description: descInp.value.trim(),
+      ts: Date.now()
+    });
+  }catch(e){
+    err.textContent = "Kunde inte spara, försök igen.";
+    err.style.display = "block";
+    console.error(e);
+    return;
+  }
+  titleInp.value = "";
+  descInp.value = "";
+});
+
+function renderTodos(){
+  const wrap = document.getElementById("todoList");
+  const todos = todosFor(currentBranch);
+  if(!todos.length){
+    wrap.innerHTML = '<p class="empty">Inga lappar just nu.</p>';
+    return;
+  }
+  wrap.innerHTML = todos.map(t => `
+    <div class="todo-note">
+      <button class="todo-note-remove" data-todo-remove="${t.id}" title="Ta bort" aria-label="Ta bort">✕</button>
+      <div class="todo-note-title">${escapeHtml(t.title)}</div>
+      ${t.description ? `<div class="todo-note-desc">${escapeHtml(t.description)}</div>` : ''}
+      <div class="todo-note-date">${new Date(t.ts).toLocaleDateString('sv-SE')}</div>
+    </div>`).join("");
+
+  wrap.querySelectorAll("[data-todo-remove]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await deleteDoc(doc(db, "todos", btn.dataset.todoRemove));
     });
   });
 }
