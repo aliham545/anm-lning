@@ -136,6 +136,7 @@
         <button class="subtabbtn" data-subtab="buddies">Veckans kompis</button>
         <button class="subtabbtn" data-subtab="participants">Deltagare</button>
         <button class="subtabbtn" data-subtab="stats">Statistik</button>
+        <button class="subtabbtn" data-subtab="todo">Att göra</button>
       </div>
 
       <div id="adm-sub-activities" class="adm-subview active">
@@ -212,8 +213,11 @@
 
       <div id="adm-sub-stats" class="adm-subview">
         <div class="card adm-section" id="statsWrap">
-          <h3 class="sectionTitle">Statistik</h3>
-          <p class="sub">Fyll i antal deltagare och ledare per aktivitet/tillfälle. Du kan skriva in aktiviteter som inte finns som en aktuell aktivitet.</p>
+          <div class="adm-topbar" style="margin-bottom:4px;">
+            <h3 class="sectionTitle" style="margin:0;">Statistik</h3>
+            <button class="rowbtn" id="printStatsBtn" style="margin-left:auto;">Skriv ut</button>
+          </div>
+          <p class="sub">Fyll i antal deltagare per aktivitet/tillfälle. Du kan skriva in aktiviteter som inte finns som en aktuell aktivitet.</p>
           <div class="toolbar">
             <div class="field">
               <label>Aktivitet/tillfälle</label>
@@ -228,14 +232,33 @@
           <div class="toolbar">
             <div class="field maxfield"><label>Pojkar</label><input type="number" id="statBoys" min="0" placeholder="0"></div>
             <div class="field maxfield"><label>Flickor</label><input type="number" id="statGirls" min="0" placeholder="0"></div>
-            <div class="field maxfield"><label>Ledare, kvinnor</label><input type="number" id="statLeaderWomen" min="0" placeholder="0"></div>
-            <div class="field maxfield"><label>Ledare, män</label><input type="number" id="statLeaderMen" min="0" placeholder="0"></div>
+            <div class="field maxfield"><label>Kvinnor</label><input type="number" id="statWomen" min="0" placeholder="0"></div>
+            <div class="field maxfield"><label>Män</label><input type="number" id="statMen" min="0" placeholder="0"></div>
             <button class="btn small" id="addStatBtn">Lägg till</button>
           </div>
           <p class="err" id="newStat-err"></p>
 
           <div id="statsSummary" class="stats-summary"></div>
           <div id="statsTable"></div>
+        </div>
+      </div>
+      <div id="statsPrintArea" class="print-only"></div>
+
+      <div id="adm-sub-todo" class="adm-subview">
+        <div class="card adm-section" id="todoWrap">
+          <h3 class="sectionTitle">Att göra</h3>
+          <p class="sub">Lappar för sånt som behöver göras — lägg till en uppgift med en kort beskrivning, och ta bort den när den är klar.</p>
+          <div class="toolbar">
+            <div class="field">
+              <label>Uppgift</label>
+              <input type="text" id="newTodoTitle" placeholder="t.ex. Beställa pysselmaterial">
+            </div>
+          </div>
+          <label>Beskrivning <span class="optional">(valfritt)</span></label>
+          <textarea id="newTodoDesc" rows="2" placeholder="Mer detaljer..."></textarea>
+          <button class="btn small" id="addTodoBtn">Lägg till lapp</button>
+          <p class="err" id="newTodo-err"></p>
+          <div id="todoList" class="todo-board"></div>
         </div>
       </div>
     </div>
