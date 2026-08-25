@@ -771,3 +771,25 @@ div.field-error{
 }
 .todo-note-desc{font-size:13px;color:var(--text);line-height:1.4;margin-bottom:10px;white-space:pre-wrap;}
 .todo-note-date{font-size:11px;color:var(--text-soft);font-weight:600;}
+.todo-note-done-btn{
+  display:block;
+  width:100%;
+  margin-top:10px;
+  background:#fff;
+  border:1.5px solid var(--blue);
+  color:var(--blue);
+  border-radius:8px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+.todo-note-done-btn:hover{background:var(--blue);color:#fff;}
+.todo-note-done{
+  opacity:.6;
+  background:#EDF1F6 !important;
+  border-color:var(--line) !important;
+}
+.todo-note-done .todo-note-title{text-decoration:line-through;color:var(--text-soft);}
+.todo-note-done .todo-note-done-btn{background:var(--blue-light);border-color:var(--line);color:var(--text-soft);}
+.todo-note-done .todo-note-done-btn:hover{background:var(--blue);color:#fff;border-color:var(--blue);}
