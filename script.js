@@ -17,6 +17,7 @@ const SCHOOLS_BY_BRANCH = {
 };
 
 const STADIUMS = [
+  { id: "f", label: "Förskoleklass", sub: "Årskurs F" },
   { id: "lag", label: "Lågstadiet", sub: "Årskurs 1–3" },
   { id: "mellan", label: "Mellanstadiet", sub: "Årskurs 4–6" },
   { id: "hog", label: "Högstadiet", sub: "Årskurs 7–9" },
@@ -61,11 +62,17 @@ function branchInfo(id){
 }
 
 function stadiumForGrade(grade){
+  if(String(grade).trim().toUpperCase() === "F") return "f";
   const g = parseInt(grade, 10);
   if(g >= 1 && g <= 3) return "lag";
   if(g >= 4 && g <= 6) return "mellan";
   if(g >= 7 && g <= 9) return "hog";
   return null;
+}
+function gradeSortValue(grade){
+  if(String(grade).trim().toUpperCase() === "F") return 0;
+  const g = parseInt(grade, 10);
+  return isNaN(g) ? 99 : g;
 }
 
 function escapeHtml(s){
@@ -888,7 +895,7 @@ function renderAdmin(){
         const parentName = parentInp.value.trim();
         const parentPhone = phoneInp.value.trim();
         if(!childName || !klass) return;
-        const grade = st.id === "lag" ? "1" : st.id === "mellan" ? "4" : st.id === "hog" ? "7" : "";
+        const grade = st.id === "f" ? "F" : st.id === "lag" ? "1" : st.id === "mellan" ? "4" : st.id === "hog" ? "7" : "";
         await addDoc(registrationsCol, {
           branch: currentBranch, childName, klass, grade,
           gender: "", school: "", attendsFritids: false, childPhone: "", otherInfo: "",
@@ -943,7 +950,7 @@ function renderDeltagarlista(){
         (r.parentPhone || "").toLowerCase().includes(contactFilter)
       );
     }
-    list = list.slice().sort((a,b) => (a.grade - b.grade) || a.childName.localeCompare(b.childName, 'sv'));
+    list = list.slice().sort((a,b) => (gradeSortValue(a.grade) - gradeSortValue(b.grade)) || a.childName.localeCompare(b.childName, 'sv'));
 
     if(!list.length && !contactFilter && (st.id === "utflykt" || st.id === "familj")) return;
 
@@ -1276,6 +1283,7 @@ document.getElementById("addTodoBtn").addEventListener("click", async () => {
       branch: currentBranch,
       title,
       description: descInp.value.trim(),
+      done: false,
       ts: Date.now()
     });
   }catch(e){
@@ -1290,22 +1298,30 @@ document.getElementById("addTodoBtn").addEventListener("click", async () => {
 
 function renderTodos(){
   const wrap = document.getElementById("todoList");
-  const todos = todosFor(currentBranch);
+  const todos = todosFor(currentBranch).slice().sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1));
   if(!todos.length){
     wrap.innerHTML = '<p class="empty">Inga lappar just nu.</p>';
     return;
   }
   wrap.innerHTML = todos.map(t => `
-    <div class="todo-note">
+    <div class="todo-note${t.done ? ' todo-note-done' : ''}">
       <button class="todo-note-remove" data-todo-remove="${t.id}" title="Ta bort" aria-label="Ta bort">✕</button>
       <div class="todo-note-title">${escapeHtml(t.title)}</div>
       ${t.description ? `<div class="todo-note-desc">${escapeHtml(t.description)}</div>` : ''}
       <div class="todo-note-date">${new Date(t.ts).toLocaleDateString('sv-SE')}</div>
+      <button class="todo-note-done-btn" data-todo-toggle="${t.id}" data-current="${t.done ? '1' : '0'}">${t.done ? 'Ångra' : 'Avklarad'}</button>
     </div>`).join("");
 
   wrap.querySelectorAll("[data-todo-remove]").forEach(btn => {
     btn.addEventListener("click", async () => {
       await deleteDoc(doc(db, "todos", btn.dataset.todoRemove));
+    });
+  });
+
+  wrap.querySelectorAll("[data-todo-toggle]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const nowDone = btn.dataset.current !== "1";
+      await updateDoc(doc(db, "todos", btn.dataset.todoToggle), { done: nowDone });
     });
   });
 }
