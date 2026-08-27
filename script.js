@@ -353,7 +353,7 @@ function renderActivityChecks(){
   ["utflykt", "familj"].forEach(catId => {
     const options = activitiesForStadium(signupBranch, catId).filter(a => activityMatchesSchool(a, school));
     if(options.length){
-      sections.push({ label: STADIUMS.find(s => s.id === catId).label, options });
+      sections.push({ label: STADIUMS.find(s => s.id === catId).label, options, isFamily: catId === "familj" });
     }
   });
 
@@ -377,14 +377,26 @@ function renderActivityChecks(){
       const label = document.createElement("label");
       label.className = "activity-check" + (full ? " disabled" : "");
       label.innerHTML = `
-        <input type="checkbox" value="${a.id}" ${full ? "disabled" : ""}>
+        <input type="checkbox" value="${a.id}" ${sec.isFamily ? 'data-family="1"' : ''} ${full ? "disabled" : ""}>
         <span>${activityLabelHtml(a)}</span>
         <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>`;
       wrap.appendChild(label);
     });
   });
+  updateFamilyCountFieldsVisibility();
 }
 
+function updateFamilyCountFieldsVisibility(){
+  const anyFamily = document.querySelectorAll('#s-activities input[data-family="1"]:checked').length > 0;
+  const wrap = document.getElementById("familyCountFields");
+  wrap.style.display = anyFamily ? "block" : "none";
+  if(!anyFamily){
+    document.getElementById("s-family-children").value = "";
+    document.getElementById("s-family-adults").value = "";
+  }
+}
+
+document.getElementById("s-activities").addEventListener("change", updateFamilyCountFieldsVisibility);
 document.getElementById("s-grade").addEventListener("change", renderActivityChecks);
 document.getElementById("s-school").addEventListener("change", renderActivityChecks);
 
@@ -466,6 +478,7 @@ function showTicket(branchName, data, wishNames){
       <div class="row"><span>Årskurs</span><b>${escapeHtml(data.grade)}</b></div>
       <div class="row"><span>Klass</span><b>${escapeHtml(data.klass)}</b></div>
       <div class="row"><span>Önskade aktiviteter</span><b>${escapeHtml(wishNames.join(', '))}</b></div>
+      ${typeof data.familyChildren !== "undefined" ? `<div class="row"><span>Familj: barn / vuxna</span><b>${data.familyChildren} / ${data.familyAdults}</b></div>` : ''}
       <div class="row"><span>Förälder</span><b>${escapeHtml(data.parentName)}</b></div>
       <div class="row"><span>Datum</span><b>${dateStr}</b></div>
       <p class="ticket-note">Personalen placerar barnet i aktivitet(er) inom kort.</p>
@@ -484,11 +497,12 @@ function clearFieldErrors(){
   REQUIRED_SIGNUP_FIELDS.forEach(id => document.getElementById(id).classList.remove("field-error"));
   document.getElementById("s-gender").classList.remove("field-error");
   document.getElementById("s-activities").classList.remove("field-error");
+  document.getElementById("familyCountFields").classList.remove("field-error");
 }
 
 document.getElementById("signupForm").addEventListener("input", (e) => {
   e.target.classList.remove("field-error");
-  const wrap = e.target.closest(".radio-row, .activity-checks");
+  const wrap = e.target.closest(".radio-row, .activity-checks, .family-count-fields");
   if(wrap) wrap.classList.remove("field-error");
 });
 
@@ -510,6 +524,9 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   const parentPhone = document.getElementById("s-parentphone").value.trim();
   const otherInfo = document.getElementById("s-other").value.trim();
   const wishActivityIds = Array.from(document.querySelectorAll('#s-activities input[type="checkbox"]:checked')).map(c => c.value);
+  const isFamilySignup = document.querySelectorAll('#s-activities input[data-family="1"]:checked').length > 0;
+  const familyChildrenInp = document.getElementById("s-family-children");
+  const familyAdultsInp = document.getElementById("s-family-adults");
 
   let firstInvalid = null;
   function invalid(id){
@@ -525,6 +542,10 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   if(!parentName) invalid("s-parentname");
   if(!parentPhone) invalid("s-parentphone");
   if(!wishActivityIds.length) invalid("s-activities");
+  if(isFamilySignup && (familyChildrenInp.value === "" || familyAdultsInp.value === "")){
+    document.getElementById("familyCountFields").classList.add("field-error");
+    if(!firstInvalid) firstInvalid = document.getElementById("familyCountFields");
+  }
 
   if(firstInvalid){
     err.textContent = "Fyll i de markerade fälten innan du skickar ansökan.";
@@ -534,6 +555,10 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   }
 
   const data = { childName, gender, school, grade, klass, attendsFritids, childPhone, parentName, parentPhone, otherInfo };
+  if(isFamilySignup){
+    data.familyChildren = parseInt(familyChildrenInp.value, 10) || 0;
+    data.familyAdults = parseInt(familyAdultsInp.value, 10) || 0;
+  }
   const wishNames = wishActivityIds.map(id => activityName(signupBranch, id));
 
   try{
@@ -553,6 +578,7 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   showTicket(branchInfo(signupBranch).name, data, wishNames);
   document.getElementById("signupForm").reset();
   renderActivityChecks();
+  updateFamilyCountFieldsVisibility();
 });
 
 document.querySelectorAll(".tabbtn").forEach(btn => {
@@ -723,6 +749,7 @@ function renderPending(){
           <div>Barnets telefon: <b>${r.childPhone ? phoneLink(r.childPhone) : '–'}</b></div>
           <div>Förälder: <b>${escapeHtml(r.parentName)}</b> &nbsp;·&nbsp; Telefon: <b>${phoneLink(r.parentPhone)}</b></div>
           <div>Önskemål: <b>${escapeHtml(wishIds(r).map(id => activityName(currentBranch, id)).join(', ') || '–')}</b></div>
+          ${typeof r.familyChildren !== "undefined" ? `<div>Familj: <b>${r.familyChildren} barn / ${r.familyAdults} vuxna</b></div>` : ''}
           ${r.otherInfo ? `<div>Övrig info: <b>${escapeHtml(r.otherInfo)}</b></div>` : ''}
         </div>
         <label class="muted" style="font-size:12px;">Placera i:</label>
@@ -971,17 +998,18 @@ function renderDeltagarlista(){
             <td>${phoneLink(r.parentPhone)}</td>
             <td>${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
             <td>${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</td>
+            <td>${typeof r.familyChildren !== "undefined" ? (r.familyChildren + ' / ' + r.familyAdults) : ''}</td>
             <td>${r.otherInfo ? escapeHtml(r.otherInfo) : ''}</td>
             <td class="no-print"><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
           </tr>`;
         }).join("")
-      : `<tr><td colspan="12" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
+      : `<tr><td colspan="13" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
 
     section.innerHTML = `
       <h4 class="stadium-heading">${st.label} <span class="muted">(${st.sub}) · ${list.length} st</span></h4>
       <div class="table-scroll">
       <table>
-        <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
+        <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Familj: barn/vuxna</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       </div>`;
