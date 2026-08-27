@@ -793,3 +793,21 @@ div.field-error{
 .todo-note-done .todo-note-title{text-decoration:line-through;color:var(--text-soft);}
 .todo-note-done .todo-note-done-btn{background:var(--blue-light);border-color:var(--line);color:var(--text-soft);}
 .todo-note-done .todo-note-done-btn:hover{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+/* ---------- Familjeaktivitet: antal barn/vuxna ---------- */
+
+.family-count-fields{
+  border:1.5px solid var(--line);
+  background:var(--blue-pale);
+  border-radius:12px;
+  padding:12px 14px;
+  margin-top:14px;
+}
+.family-count-fields label{margin-top:0;}
+.family-count-fields label:first-child{margin-top:0;}
+.family-count-fields input{margin-bottom:10px;}
+.family-count-fields input:last-child{margin-bottom:0;}
+.family-count-fields.field-error{
+  border-color:var(--danger);
+  background:var(--danger-light);
+}
