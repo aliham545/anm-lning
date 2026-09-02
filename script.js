@@ -376,10 +376,11 @@ function renderActivityChecks(){
     sec.options.forEach(a => {
       const count = displayCount(signupBranch, a.id);
       const full = a.maxSpots && count >= a.maxSpots;
+      const isFamilyActivity = actStadiums(a).includes("familj");
       const label = document.createElement("label");
       label.className = "activity-check" + (full ? " disabled" : "");
       label.innerHTML = `
-        <input type="checkbox" value="${a.id}" ${sec.isFamily ? 'data-family="1"' : ''} ${full ? "disabled" : ""}>
+        <input type="checkbox" value="${a.id}" ${isFamilyActivity ? 'data-family="1"' : ''} ${full ? "disabled" : ""}>
         <span>${activityLabelHtml(a)}</span>
         <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>`;
       wrap.appendChild(label);
