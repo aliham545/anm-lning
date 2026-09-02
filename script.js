@@ -22,7 +22,7 @@ const STADIUMS = [
   { id: "mellan", label: "Mellanstadiet", sub: "Årskurs 4–6" },
   { id: "hog", label: "Högstadiet", sub: "Årskurs 7–9" },
   { id: "utflykt", label: "Utflykter", sub: "Alla åldrar" },
-  { id: "familj", label: "Familjeaktivitet", sub: "Hela familjen" }
+  { id: "familj", label: "Familjeaktivitet", sub: "Endast åk F–3" }
 ];
 
 const activitiesCol = collection(db, "activities");
@@ -350,7 +350,9 @@ function renderActivityChecks(){
     const cat = STADIUMS.find(s => s.id === stadium);
     sections.push({ label: cat.label, options: activitiesForStadium(signupBranch, stadium).filter(a => activityMatchesSchool(a, school)) });
   }
-  ["utflykt", "familj"].forEach(catId => {
+  const familyEligible = stadium === "f" || stadium === "lag";
+  const extraCats = familyEligible ? ["utflykt", "familj"] : ["utflykt"];
+  extraCats.forEach(catId => {
     const options = activitiesForStadium(signupBranch, catId).filter(a => activityMatchesSchool(a, school));
     if(options.length){
       sections.push({ label: STADIUMS.find(s => s.id === catId).label, options, isFamily: catId === "familj" });
@@ -722,7 +724,9 @@ function renderPending(){
   wrap.innerHTML = pending.map(r => {
     const stadium = stadiumForGrade(r.grade);
     const options = (stadium ? activitiesForStadium(currentBranch, stadium) : []).filter(a => activityMatchesSchool(a, r.school));
-    const extra = [...activitiesForStadium(currentBranch, "utflykt"), ...activitiesForStadium(currentBranch, "familj")].filter(a => activityMatchesSchool(a, r.school));
+    const familyEligible = stadium === "f" || stadium === "lag";
+    const extraCatIds = familyEligible ? ["utflykt", "familj"] : ["utflykt"];
+    const extra = extraCatIds.flatMap(catId => activitiesForStadium(currentBranch, catId)).filter(a => activityMatchesSchool(a, r.school));
     const allOptions = [...options, ...extra.filter(a => !options.some(o => o.id === a.id))];
     const wishSet = new Set(wishIds(r));
     const checksHtml = allOptions.length
