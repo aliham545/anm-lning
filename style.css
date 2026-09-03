@@ -811,3 +811,133 @@ div.field-error{
   border-color:var(--danger);
   background:var(--danger-light);
 }
+
+/* ---------- Responsiva tabeller (stapla som kort på mobil) ---------- */
+
+.stack-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+@media (max-width:680px){
+  table.responsive-stack thead{
+    position:absolute;
+    width:1px;height:1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+  }
+  table.responsive-stack, table.responsive-stack tbody, table.responsive-stack tr, table.responsive-stack td{
+    display:block;
+    width:100%;
+  }
+  table.responsive-stack tr{
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    background:#fff;
+  }
+  table.responsive-stack tr:last-child{margin-bottom:0;}
+  table.responsive-stack td{
+    border:none;
+    padding:6px 0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    text-align:right;
+  }
+  table.responsive-stack td[data-label=""]{ justify-content:flex-end; }
+  table.responsive-stack td::before{
+    content:attr(data-label);
+    font-weight:700;
+    color:var(--text-soft);
+    font-size:12px;
+    text-align:left;
+    flex-shrink:0;
+  }
+  table.responsive-stack td[data-label=""]::before{content:none;}
+  table.responsive-stack td.empty{display:block;text-align:left;}
+  .table-scroll{overflow-x:visible;}
+}
+
+/* ---------- Kontaktkort (deltagarlista på mobil) ---------- */
+
+.mobile-card-list{display:none;}
+
+@media (max-width:680px){
+  .desktop-table{display:none;}
+  .mobile-card-list{display:block;}
+}
+
+.contact-card{
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  padding:14px 16px;
+  background:#fff;
+  margin-bottom:12px;
+}
+.contact-card:last-child{margin-bottom:0;}
+.contact-card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:8px;
+  margin-bottom:10px;
+}
+.contact-card-name{font-weight:700;color:var(--navy);font-size:16px;}
+.contact-card-callrow{
+  background:var(--blue-pale);
+  border-radius:10px;
+  padding:8px 10px;
+  margin-bottom:10px;
+}
+.contact-card-callitem{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  font-size:13px;
+  padding:3px 0;
+}
+.contact-card-callitem .muted{flex-shrink:0;}
+.contact-card-meta{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  font-size:12px;
+  color:var(--text-soft);
+  margin-bottom:8px;
+}
+.contact-card-meta span{
+  background:var(--blue-pale);
+  padding:3px 9px;
+  border-radius:999px;
+}
+.contact-card-line{font-size:13px;margin-bottom:4px;line-height:1.4;}
+.contact-card-line b{color:var(--text-soft);font-weight:700;}
+.contact-card .rowbtn{margin-top:8px;}
+
+/* ---------- Admin-underflikar: horisontell scroll på mobil ---------- */
+
+@media (max-width:680px){
+  .adm-subtabs{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .adm-subtabs::-webkit-scrollbar{display:none;}
+  .subtabbtn{flex-shrink:0;white-space:nowrap;}
+}
+
+/* ---------- Utskrift: alltid använd tabellversionen ---------- */
+
+@media print{
+  .desktop-table{display:block !important;}
+  .mobile-card-list{display:none !important;}
+  table.responsive-stack, table.responsive-stack thead, table.responsive-stack tbody, table.responsive-stack tr, table.responsive-stack td{
+    display:revert;
+  }
+  table.responsive-stack thead{position:static;width:auto;height:auto;overflow:visible;clip:auto;}
+  table.responsive-stack td{display:table-cell;text-align:left;}
+  table.responsive-stack td::before{content:none;}
+}
