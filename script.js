@@ -826,12 +826,12 @@ function renderAdmin(){
       const rowsHtml = regsHere.length
         ? regsHere.map(r => `
             <tr data-reg="${r.id}">
-              <td>${escapeHtml(r.childName)}</td>
-              <td>${escapeHtml(r.klass)}</td>
-              <td>${escapeHtml(r.parentName)}</td>
-              <td>${phoneLink(r.parentPhone)}</td>
-              <td style="white-space:nowrap;">
-                <button class="rowbtn unplace-btn" style="margin-right:10px;" title="Tar bara bort barnet från den här aktiviteten">Flytta bort</button>
+              <td data-label="Barn">${escapeHtml(r.childName)}</td>
+              <td data-label="Klass">${escapeHtml(r.klass)}</td>
+              <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
+              <td data-label="Förälders telefon">${phoneLink(r.parentPhone)}</td>
+              <td data-label="" class="stack-actions">
+                <button class="rowbtn unplace-btn" title="Tar bara bort barnet från den här aktiviteten">Flytta bort</button>
                 <button class="rowbtn" data-reg-remove="${r.id}" title="Tar bort hela anmälan">Ta bort deltagare</button>
               </td>
             </tr>`).join("")
@@ -855,7 +855,7 @@ function renderAdmin(){
           Skola: <b>${(act.schools && act.schools.length) ? escapeHtml(act.schools.join(', ')) : 'Alla skolor'}</b>
         </div>
         <div class="table-scroll">
-        <table>
+        <table class="responsive-stack">
           <thead><tr><th>Barn</th><th>Klass</th><th>Förälder</th><th>Förälders telefon</th><th></th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
@@ -993,31 +993,61 @@ function renderDeltagarlista(){
           const placedNames = placedIds(r).map(id => activityName(currentBranch, id));
           return `
           <tr data-reg="${r.id}">
-            <td>${escapeHtml(r.childName)}</td>
-            <td>${escapeHtml(r.gender || '–')}</td>
-            <td>${escapeHtml(r.school || '–')}</td>
-            <td>${escapeHtml(r.grade)}</td>
-            <td>${escapeHtml(r.klass)}</td>
-            <td>${r.attendsFritids ? "Ja" : "Nej"}</td>
-            <td>${escapeHtml(r.parentName)}</td>
-            <td>${phoneLink(r.parentPhone)}</td>
-            <td>${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
-            <td>${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</td>
-            <td>${typeof r.familyChildren !== "undefined" ? (r.familyChildren + ' / ' + r.familyAdults) : ''}</td>
-            <td>${r.otherInfo ? escapeHtml(r.otherInfo) : ''}</td>
-            <td class="no-print"><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
+            <td data-label="Barn">${escapeHtml(r.childName)}</td>
+            <td data-label="Kön">${escapeHtml(r.gender || '–')}</td>
+            <td data-label="Skola">${escapeHtml(r.school || '–')}</td>
+            <td data-label="Åk">${escapeHtml(r.grade)}</td>
+            <td data-label="Klass">${escapeHtml(r.klass)}</td>
+            <td data-label="Fritids">${r.attendsFritids ? "Ja" : "Nej"}</td>
+            <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
+            <td data-label="Förälders tel">${phoneLink(r.parentPhone)}</td>
+            <td data-label="Barnets tel">${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
+            <td data-label="Aktivitet(er)">${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</td>
+            <td data-label="Familj: barn/vuxna">${typeof r.familyChildren !== "undefined" ? (r.familyChildren + ' / ' + r.familyAdults) : ''}</td>
+            <td data-label="Övrig info">${r.otherInfo ? escapeHtml(r.otherInfo) : ''}</td>
+            <td data-label="" class="no-print stack-actions"><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
           </tr>`;
         }).join("")
       : `<tr><td colspan="13" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
 
+    const cardsHtml = list.length
+      ? list.map(r => {
+          const placedNames = placedIds(r).map(id => activityName(currentBranch, id));
+          return `
+          <div class="contact-card">
+            <div class="contact-card-head">
+              <span class="contact-card-name">${escapeHtml(r.childName)}</span>
+              <span class="badge ok">Åk ${escapeHtml(r.grade)} · ${escapeHtml(r.klass)}</span>
+            </div>
+            <div class="contact-card-callrow">
+              <div class="contact-card-callitem">
+                <span class="muted">Förälder</span>
+                <span>${escapeHtml(r.parentName)} — ${phoneLink(r.parentPhone)}</span>
+              </div>
+              ${r.childPhone ? `<div class="contact-card-callitem"><span class="muted">Barnet</span><span>${phoneLink(r.childPhone)}</span></div>` : ''}
+            </div>
+            <div class="contact-card-meta">
+              <span>${escapeHtml(r.gender || '–')}</span>
+              <span>${escapeHtml(r.school || '–')}</span>
+              <span>Fritids: ${r.attendsFritids ? "Ja" : "Nej"}</span>
+            </div>
+            <div class="contact-card-line"><b>Aktivitet(er):</b> ${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</div>
+            ${typeof r.familyChildren !== "undefined" ? `<div class="contact-card-line"><b>Familj:</b> ${r.familyChildren} barn / ${r.familyAdults} vuxna</div>` : ''}
+            ${r.otherInfo ? `<div class="contact-card-line"><b>Övrig info:</b> ${escapeHtml(r.otherInfo)}</div>` : ''}
+            <button class="rowbtn no-print" data-contact-remove="${r.id}">Ta bort</button>
+          </div>`;
+        }).join("")
+      : `<p class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</p>`;
+
     section.innerHTML = `
       <h4 class="stadium-heading">${st.label} <span class="muted">(${st.sub}) · ${list.length} st</span></h4>
-      <div class="table-scroll">
+      <div class="table-scroll desktop-table">
       <table>
         <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Familj: barn/vuxna</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
-      </div>`;
+      </div>
+      <div class="mobile-card-list">${cardsHtml}</div>`;
     wrap.appendChild(section);
   });
 
@@ -1196,19 +1226,19 @@ function entryTotal(e){
 function statsTableHtml(entries, showActions){
   return `
     <div class="table-scroll">
-    <table>
+    <table class="responsive-stack">
       <thead><tr><th>Datum</th><th>Aktivitet/tillfälle</th><th>Pojkar</th><th>Flickor</th><th>Kvinnor</th><th>Män</th><th>Totalt</th>${showActions ? '<th class="no-print"></th>' : ''}</tr></thead>
       <tbody>
         ${entries.map(e => `
           <tr>
-            <td>${escapeHtml(e.date || '')}</td>
-            <td>${escapeHtml(e.label)}</td>
-            <td>${e.boys || 0}</td>
-            <td>${e.girls || 0}</td>
-            <td>${e.women || 0}</td>
-            <td>${e.men || 0}</td>
-            <td><b>${entryTotal(e)}</b></td>
-            ${showActions ? `<td class="no-print"><button class="rowbtn" data-stat-remove="${e.id}">Ta bort</button></td>` : ''}
+            <td data-label="Datum">${escapeHtml(e.date || '')}</td>
+            <td data-label="Aktivitet/tillfälle">${escapeHtml(e.label)}</td>
+            <td data-label="Pojkar">${e.boys || 0}</td>
+            <td data-label="Flickor">${e.girls || 0}</td>
+            <td data-label="Kvinnor">${e.women || 0}</td>
+            <td data-label="Män">${e.men || 0}</td>
+            <td data-label="Totalt"><b>${entryTotal(e)}</b></td>
+            ${showActions ? `<td data-label="" class="no-print stack-actions"><button class="rowbtn" data-stat-remove="${e.id}">Ta bort</button></td>` : ''}
           </tr>`).join("")}
       </tbody>
     </table>
