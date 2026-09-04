@@ -145,6 +145,7 @@
         <button class="subtabbtn" data-subtab="participants">Deltagare</button>
         <button class="subtabbtn" data-subtab="stats">Statistik</button>
         <button class="subtabbtn" data-subtab="todo">Att göra</button>
+        <button class="subtabbtn" data-subtab="schedule">Schema</button>
       </div>
 
       <div id="adm-sub-activities" class="adm-subview active">
@@ -268,6 +269,56 @@
           <button class="btn small" id="addTodoBtn">Lägg till lapp</button>
           <p class="err" id="newTodo-err"></p>
           <div id="todoList" class="todo-board"></div>
+        </div>
+      </div>
+
+      <div id="adm-sub-schedule" class="adm-subview">
+        <div class="card adm-section" id="scheduleWrap">
+          <div class="adm-topbar no-print" style="margin-bottom:4px;">
+            <h3 class="sectionTitle" style="margin:0;">Schema</h3>
+            <div style="margin-left:auto;display:flex;gap:10px;">
+              <button class="rowbtn" id="printScheduleBtn">Skriv ut</button>
+              <button class="rowbtn" id="importScheduleBtn">Importera exempel-schema</button>
+            </div>
+          </div>
+          <h3 class="printTitle">Schema</h3>
+          <p class="sub no-print">Personalens schema, uppdelat på FM och EM. Klicka "Ändra" på ett pass för att redigera tid, personal, sal eller annat.</p>
+
+          <div class="toolbar no-print">
+            <div class="field maxfield">
+              <label>Del av dag</label>
+              <select id="schedPeriod">
+                <option value="FM">FM</option>
+                <option value="EM">EM</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Pass/aktivitet</label>
+              <input type="text" id="schedActivity" placeholder="t.ex. Frukost">
+            </div>
+            <div class="field maxfield">
+              <label>Tid</label>
+              <input type="text" id="schedTime" placeholder="07:30–08:15">
+            </div>
+          </div>
+          <div class="toolbar no-print">
+            <div class="field">
+              <label>Sal/plats</label>
+              <input type="text" id="schedLocation" placeholder="t.ex. Matsalen">
+            </div>
+            <div class="field">
+              <label>Personal</label>
+              <input type="text" id="schedStaff" placeholder="t.ex. Hoda + Zijad">
+            </div>
+            <div class="field">
+              <label>Grupp/anteckning <span class="optional">(valfritt)</span></label>
+              <input type="text" id="schedNote" placeholder="t.ex. Åk 4-6">
+            </div>
+            <button class="btn small" id="addSchedBtn">Lägg till pass</button>
+          </div>
+          <p class="err no-print" id="newSched-err"></p>
+
+          <div id="scheduleBoard"></div>
         </div>
       </div>
     </div>
