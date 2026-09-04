@@ -31,6 +31,7 @@ const leadersCol = collection(db, "leaders");
 const buddiesCol = collection(db, "buddies");
 const statsCol = collection(db, "stats");
 const todosCol = collection(db, "todos");
+const scheduleCol = collection(db, "schedule");
 
 function emptyGroups(){
   const o = {};
@@ -44,11 +45,13 @@ let leadersByBranch = emptyGroups();
 let buddiesByBranch = emptyGroups();
 let statsByBranch = emptyGroups();
 let todosByBranch = emptyGroups();
+let scheduleByBranch = emptyGroups();
 let unsubscribeRegs = null;
 let unsubscribeLeaders = null;
 let unsubscribeBuddies = null;
 let unsubscribeStats = null;
 let unsubscribeTodos = null;
+let unsubscribeSchedule = null;
 
 let currentBranch = localStorage.getItem(CURRENT_BRANCH_KEY) || BRANCHES[0].id;
 if(!BRANCHES.some(b => b.id === currentBranch)) currentBranch = BRANCHES[0].id;
@@ -181,16 +184,30 @@ function startLeadersAndBuddiesListeners(){
       rerenderAll();
     }, err => console.error("todos snapshot error:", err));
   }
+  if(!unsubscribeSchedule){
+    unsubscribeSchedule = onSnapshot(scheduleCol, snap => {
+      const grouped = emptyGroups();
+      snap.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        if(!grouped[data.branch]) grouped[data.branch] = [];
+        grouped[data.branch].push(data);
+      });
+      scheduleByBranch = grouped;
+      rerenderAll();
+    }, err => console.error("schedule snapshot error:", err));
+  }
 }
 function stopLeadersAndBuddiesListeners(){
   if(unsubscribeLeaders){ unsubscribeLeaders(); unsubscribeLeaders = null; }
   if(unsubscribeBuddies){ unsubscribeBuddies(); unsubscribeBuddies = null; }
   if(unsubscribeStats){ unsubscribeStats(); unsubscribeStats = null; }
   if(unsubscribeTodos){ unsubscribeTodos(); unsubscribeTodos = null; }
+  if(unsubscribeSchedule){ unsubscribeSchedule(); unsubscribeSchedule = null; }
   leadersByBranch = emptyGroups();
   buddiesByBranch = emptyGroups();
   statsByBranch = emptyGroups();
   todosByBranch = emptyGroups();
+  scheduleByBranch = emptyGroups();
 }
 
 function rerenderAll(){
@@ -229,6 +246,56 @@ function leadersFor(branchId){ return leadersByBranch[branchId] || []; }
 function buddiesFor(branchId){ return buddiesByBranch[branchId] || []; }
 function statsFor(branchId){ return (statsByBranch[branchId] || []).slice().sort((a,b) => (b.date || '').localeCompare(a.date || '') || b.ts - a.ts); }
 function todosFor(branchId){ return (todosByBranch[branchId] || []).slice().sort((a,b) => b.ts - a.ts); }
+
+function parseSortMinutes(timeStr){
+  const m = String(timeStr || "").match(/(\d{1,2})[:.](\d{2})/);
+  if(!m) return 9999;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+function scheduleFor(branchId, period){
+  return (scheduleByBranch[branchId] || [])
+    .filter(s => s.period === period)
+    .slice()
+    .sort((a, b) => parseSortMinutes(a.time) - parseSortMinutes(b.time));
+}
+
+// Exempel-schema, tolkat från ett inklistrat Kroksbäck-schema. Används bara
+// om man klickar "Importera exempel-schema" i admin.
+const SEED_SCHEDULE = [
+  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Hoda / Zijad / Ali", note: "" },
+  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Samah + Zijad", note: "" },
+  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Zijad + Alia", note: "" },
+  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Samah + Alia", note: "" },
+  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Adam + Hoda", note: "" },
+  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Ali", note: "" },
+  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Zijad", note: "" },
+  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Adam", note: "" },
+  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Zijad", note: "" },
+  { period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Alia + Adam", note: "Åk 4-6" },
+  { period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Samah + Zijad", note: "Åk 4-6" },
+  { period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Ali + Alia", note: "Åk 4-6" },
+  { period: "FM", activity: "Rastaktivitet", time: "11:30–12:00", location: "Skolgården", staff: "Alia + Hoda", note: "Åk F-3" },
+  { period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Zijad + Ali", note: "Åk 7-9" },
+  { period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Ali + Enna", note: "Åk 7-9, grupp A+B" },
+  { period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Zijad + Hoda", note: "Åk 7-9, grupp A+B" },
+  { period: "FM", activity: "Rastfotboll", time: "11:50–12:50", location: "Idrottshallen", staff: "Zijad", note: "Åk 7-9, grupp B+C" },
+  { period: "EM", activity: "Aktivitetsgrupp", time: "13:30–14:30", location: "2a:s klassrum", staff: "Enna + Alia", note: "Åk 2" },
+  { period: "EM", activity: "Roliga timmen", time: "14:10–15:20", location: "", staff: "Hoda + Enna + Adam", note: "Åk 2-3" },
+  { period: "EM", activity: "Aktivitetsgrupp", time: "13:10–14:10", location: "1:ans klassrum", staff: "Ali + Alia", note: "Åk 1" },
+  { period: "EM", activity: "Aktivitetsgrupp", time: "14:10–15:10", location: "Lågstadieklassrum", staff: "Ali + Samah", note: "Åk 3" },
+  { period: "EM", activity: "Aktivitetsgrupp", time: "13:10–14:10", location: "1:ans klassrum", staff: "Hoda + Zijad", note: "Åk 1" },
+  { period: "EM", activity: "Aktivitetsgrupp", time: "13:50–14:50", location: "4:ans klassrum", staff: "Samah + Alia", note: "Åk 4" },
+  { period: "EM", activity: "Tjejgrupp", time: "15:00–16:00", location: "4-6:an", staff: "Enna + Alia", note: "Åk 6" },
+  { period: "EM", activity: "Aktivitetsgrupp", time: "14:10–15:10", location: "4:an + 5:ans klassrum", staff: "Alia + Zijad", note: "Åk 5" },
+  { period: "EM", activity: "Bakning", time: "15:15–16:45", location: "Hemkunskapssal", staff: "Samah + Alia", note: "Åk 4-6" },
+  { period: "EM", activity: "Killgrupp", time: "15:00–16:00", location: "4-6:an", staff: "Ali + Adam", note: "Åk 6, Mellanstadiet" },
+  { period: "EM", activity: "Killgrupp", time: "16:15–17:15", location: "", staff: "Ali + Adam", note: "Åk 8" },
+  { period: "EM", activity: "Tjejgrupp", time: "16:15–17:15", location: "", staff: "Hoda + Enna", note: "Åk 8" },
+  { period: "EM", activity: "Tjejgrupp", time: "14:50–16:00", location: "", staff: "Hoda + Alia", note: "Åk 7" },
+  { period: "EM", activity: "Killgrupp", time: "15:20–16:15", location: "", staff: "Ali + Zijad", note: "Åk 9" },
+  { period: "EM", activity: "Killgrupp", time: "14:50–16:00", location: "", staff: "Zijad + Adam", note: "Åk 7" },
+  { period: "EM", activity: "Tjejgrupp", time: "15:20–16:15", location: "", staff: "Samah + Alia", note: "Åk 9" }
+];
 function buddiesForLeader(branchId, leaderId){
   return buddiesFor(branchId).filter(b => b.leaderId === leaderId).sort((a,b) => b.ts - a.ts);
 }
@@ -947,6 +1014,7 @@ function renderAdmin(){
   renderBuddies();
   renderStats();
   renderTodos();
+  renderSchedule();
 }
 
 document.getElementById("contactSearch").addEventListener("input", (e) => {
@@ -1325,7 +1393,7 @@ document.getElementById("printStatsBtn").addEventListener("click", () => {
   window.print();
 });
 window.addEventListener("afterprint", () => {
-  document.body.classList.remove("printing-stats", "printing-participants");
+  document.body.classList.remove("printing-stats", "printing-participants", "printing-schedule");
 });
 
 /* ---------- Att göra ---------- */
@@ -1385,6 +1453,156 @@ function renderTodos(){
     btn.addEventListener("click", async () => {
       const nowDone = btn.dataset.current !== "1";
       await updateDoc(doc(db, "todos", btn.dataset.todoToggle), { done: nowDone });
+    });
+  });
+}
+
+/* ---------- Schema ---------- */
+
+document.getElementById("addSchedBtn").addEventListener("click", async () => {
+  const periodInp = document.getElementById("schedPeriod");
+  const activityInp = document.getElementById("schedActivity");
+  const timeInp = document.getElementById("schedTime");
+  const locationInp = document.getElementById("schedLocation");
+  const staffInp = document.getElementById("schedStaff");
+  const noteInp = document.getElementById("schedNote");
+  const err = document.getElementById("newSched-err");
+  err.style.display = "none";
+
+  const activity = activityInp.value.trim();
+  const time = timeInp.value.trim();
+  if(!activity || !time){
+    err.textContent = "Ange minst pass/aktivitet och tid.";
+    err.style.display = "block";
+    return;
+  }
+  try{
+    await addDoc(scheduleCol, {
+      branch: currentBranch,
+      period: periodInp.value,
+      activity,
+      time,
+      location: locationInp.value.trim(),
+      staff: staffInp.value.trim(),
+      note: noteInp.value.trim(),
+      ts: Date.now()
+    });
+  }catch(e){
+    err.textContent = "Kunde inte spara, försök igen.";
+    err.style.display = "block";
+    console.error(e);
+    return;
+  }
+  activityInp.value = "";
+  timeInp.value = "";
+  locationInp.value = "";
+  staffInp.value = "";
+  noteInp.value = "";
+});
+
+document.getElementById("importScheduleBtn").addEventListener("click", async () => {
+  if(!confirm('Lägga till exempel-schemat (' + SEED_SCHEDULE.length + ' pass) för ' + branchInfo(currentBranch).name + '? Det går att redigera eller ta bort varje pass efteråt.')) return;
+  await Promise.all(SEED_SCHEDULE.map(item => addDoc(scheduleCol, {
+    branch: currentBranch,
+    ...item,
+    ts: Date.now()
+  })));
+});
+
+document.getElementById("printScheduleBtn").addEventListener("click", () => {
+  document.body.classList.add("printing-schedule");
+  window.print();
+});
+
+function scheduleRowHtml(s){
+  return `
+    <tr data-sched="${s.id}">
+      <td data-label="Tid">${escapeHtml(s.time)}</td>
+      <td data-label="Pass/aktivitet">${escapeHtml(s.activity)}</td>
+      <td data-label="Sal/plats">${s.location ? escapeHtml(s.location) : '<span class="muted">–</span>'}</td>
+      <td data-label="Personal">${escapeHtml(s.staff)}</td>
+      <td data-label="Grupp/anteckning">${s.note ? escapeHtml(s.note) : ''}</td>
+      <td data-label="" class="no-print stack-actions">
+        <button class="rowbtn sched-edit-btn">Ändra</button>
+        <button class="rowbtn" data-sched-remove="${s.id}">Ta bort</button>
+      </td>
+    </tr>`;
+}
+
+function scheduleEditRowHtml(s){
+  return `
+    <tr data-sched-edit="${s.id}">
+      <td colspan="6">
+        <div class="sched-edit-row">
+          <input type="text" class="e-time" value="${escapeHtml(s.time)}" placeholder="Tid">
+          <input type="text" class="e-activity" value="${escapeHtml(s.activity)}" placeholder="Pass/aktivitet">
+          <input type="text" class="e-location" value="${escapeHtml(s.location || '')}" placeholder="Sal/plats">
+          <input type="text" class="e-staff" value="${escapeHtml(s.staff || '')}" placeholder="Personal">
+          <input type="text" class="e-note" value="${escapeHtml(s.note || '')}" placeholder="Grupp/anteckning">
+          <select class="e-period">
+            <option value="FM" ${s.period === "FM" ? "selected" : ""}>FM</option>
+            <option value="EM" ${s.period === "EM" ? "selected" : ""}>EM</option>
+          </select>
+          <div class="sched-edit-actions">
+            <button class="btn small sched-save-btn">Spara</button>
+            <button class="ghostlink sched-cancel-btn">Avbryt</button>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function renderSchedulePeriod(period){
+  const entries = scheduleFor(currentBranch, period);
+  if(!entries.length){
+    return `<p class="empty">Inga pass inlagda för ${period} än.</p>`;
+  }
+  return `
+    <div class="table-scroll">
+    <table class="responsive-stack">
+      <thead><tr><th>Tid</th><th>Pass/aktivitet</th><th>Sal/plats</th><th>Personal</th><th>Grupp/anteckning</th><th class="no-print"></th></tr></thead>
+      <tbody>${entries.map(scheduleRowHtml).join("")}</tbody>
+    </table>
+    </div>`;
+}
+
+function renderSchedule(){
+  const wrap = document.getElementById("scheduleBoard");
+  wrap.innerHTML = `
+    <h4 class="stadium-heading">FM, ${escapeHtml(branchInfo(currentBranch).name)}</h4>
+    <div id="schedFM">${renderSchedulePeriod("FM")}</div>
+    <h4 class="stadium-heading" style="margin-top:24px;">EM, ${escapeHtml(branchInfo(currentBranch).name)}</h4>
+    <div id="schedEM">${renderSchedulePeriod("EM")}</div>
+  `;
+
+  wrap.querySelectorAll("[data-sched-remove]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if(!confirm("Ta bort det här passet?")) return;
+      await deleteDoc(doc(db, "schedule", btn.dataset.schedRemove));
+    });
+  });
+
+  wrap.querySelectorAll(".sched-edit-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tr = btn.closest("tr");
+      const id = tr.dataset.sched;
+      const entry = (scheduleByBranch[currentBranch] || []).find(s => s.id === id);
+      if(!entry) return;
+      tr.outerHTML = scheduleEditRowHtml(entry);
+      const editTr = wrap.querySelector(`[data-sched-edit="${id}"]`);
+      editTr.querySelector(".sched-save-btn").addEventListener("click", async () => {
+        await updateDoc(doc(db, "schedule", id), {
+          period: editTr.querySelector(".e-period").value,
+          time: editTr.querySelector(".e-time").value.trim(),
+          activity: editTr.querySelector(".e-activity").value.trim(),
+          location: editTr.querySelector(".e-location").value.trim(),
+          staff: editTr.querySelector(".e-staff").value.trim(),
+          note: editTr.querySelector(".e-note").value.trim()
+        });
+      });
+      editTr.querySelector(".sched-cancel-btn").addEventListener("click", () => {
+        renderSchedule();
+      });
     });
   });
 }
