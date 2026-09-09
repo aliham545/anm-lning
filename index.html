@@ -182,7 +182,7 @@
         </div>
 
         <div class="card adm-section" id="pendingWrap">
-          <h3 class="sectionTitle">Väntande ansökningar</h3>
+          <h3 class="sectionTitle">Väntande ansökningar <span class="muted" id="pendingCount"></span></h3>
           <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet.</p>
           <div id="pendingApps"></div>
         </div>
@@ -286,6 +286,10 @@
 
           <div class="toolbar no-print">
             <div class="field maxfield">
+              <label>Skola</label>
+              <select id="schedSchool"></select>
+            </div>
+            <div class="field maxfield">
               <label>Del av dag</label>
               <select id="schedPeriod">
                 <option value="FM">FM</option>
@@ -317,6 +321,15 @@
             <button class="btn small" id="addSchedBtn">Lägg till pass</button>
           </div>
           <p class="err no-print" id="newSched-err"></p>
+
+          <div class="toolbar no-print" style="margin-top:18px;">
+            <div class="field">
+              <label>Hitta mina tider</label>
+              <select id="schedStaffFilter">
+                <option value="">Visa alla</option>
+              </select>
+            </div>
+          </div>
 
           <div id="scheduleBoard"></div>
         </div>
