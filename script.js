@@ -252,49 +252,63 @@ function parseSortMinutes(timeStr){
   if(!m) return 9999;
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
-function scheduleFor(branchId, period){
+function scheduleFor(branchId, school, period){
   return (scheduleByBranch[branchId] || [])
-    .filter(s => s.period === period)
+    .filter(s => s.school === school && s.period === period)
     .slice()
     .sort((a, b) => parseSortMinutes(a.time) - parseSortMinutes(b.time));
 }
+function staffNamesIn(staffStr){
+  return String(staffStr || "")
+    .split(/[+/,]/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+function allStaffNames(branchId){
+  const names = new Set();
+  (scheduleByBranch[branchId] || []).forEach(s => {
+    staffNamesIn(s.staff).forEach(n => names.add(n));
+  });
+  return Array.from(names).sort((a, b) => a.localeCompare(b, 'sv'));
+}
+let scheduleStaffFilter = "";
 
 // Exempel-schema, tolkat från ett inklistrat Kroksbäck-schema. Används bara
 // om man klickar "Importera exempel-schema" i admin.
 const SEED_SCHEDULE = [
-  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Hoda / Zijad / Ali", note: "" },
-  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Samah + Zijad", note: "" },
-  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Zijad + Alia", note: "" },
-  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Samah + Alia", note: "" },
-  { period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Adam + Hoda", note: "" },
-  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Ali", note: "" },
-  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Zijad", note: "" },
-  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Adam", note: "" },
-  { period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Zijad", note: "" },
-  { period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Alia + Adam", note: "Åk 4-6" },
-  { period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Samah + Zijad", note: "Åk 4-6" },
-  { period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Ali + Alia", note: "Åk 4-6" },
-  { period: "FM", activity: "Rastaktivitet", time: "11:30–12:00", location: "Skolgården", staff: "Alia + Hoda", note: "Åk F-3" },
-  { period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Zijad + Ali", note: "Åk 7-9" },
-  { period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Ali + Enna", note: "Åk 7-9, grupp A+B" },
-  { period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Zijad + Hoda", note: "Åk 7-9, grupp A+B" },
-  { period: "FM", activity: "Rastfotboll", time: "11:50–12:50", location: "Idrottshallen", staff: "Zijad", note: "Åk 7-9, grupp B+C" },
-  { period: "EM", activity: "Aktivitetsgrupp", time: "13:30–14:30", location: "2a:s klassrum", staff: "Enna + Alia", note: "Åk 2" },
-  { period: "EM", activity: "Roliga timmen", time: "14:10–15:20", location: "", staff: "Hoda + Enna + Adam", note: "Åk 2-3" },
-  { period: "EM", activity: "Aktivitetsgrupp", time: "13:10–14:10", location: "1:ans klassrum", staff: "Ali + Alia", note: "Åk 1" },
-  { period: "EM", activity: "Aktivitetsgrupp", time: "14:10–15:10", location: "Lågstadieklassrum", staff: "Ali + Samah", note: "Åk 3" },
-  { period: "EM", activity: "Aktivitetsgrupp", time: "13:10–14:10", location: "1:ans klassrum", staff: "Hoda + Zijad", note: "Åk 1" },
-  { period: "EM", activity: "Aktivitetsgrupp", time: "13:50–14:50", location: "4:ans klassrum", staff: "Samah + Alia", note: "Åk 4" },
-  { period: "EM", activity: "Tjejgrupp", time: "15:00–16:00", location: "4-6:an", staff: "Enna + Alia", note: "Åk 6" },
-  { period: "EM", activity: "Aktivitetsgrupp", time: "14:10–15:10", location: "4:an + 5:ans klassrum", staff: "Alia + Zijad", note: "Åk 5" },
-  { period: "EM", activity: "Bakning", time: "15:15–16:45", location: "Hemkunskapssal", staff: "Samah + Alia", note: "Åk 4-6" },
-  { period: "EM", activity: "Killgrupp", time: "15:00–16:00", location: "4-6:an", staff: "Ali + Adam", note: "Åk 6, Mellanstadiet" },
-  { period: "EM", activity: "Killgrupp", time: "16:15–17:15", location: "", staff: "Ali + Adam", note: "Åk 8" },
-  { period: "EM", activity: "Tjejgrupp", time: "16:15–17:15", location: "", staff: "Hoda + Enna", note: "Åk 8" },
-  { period: "EM", activity: "Tjejgrupp", time: "14:50–16:00", location: "", staff: "Hoda + Alia", note: "Åk 7" },
-  { period: "EM", activity: "Killgrupp", time: "15:20–16:15", location: "", staff: "Ali + Zijad", note: "Åk 9" },
-  { period: "EM", activity: "Killgrupp", time: "14:50–16:00", location: "", staff: "Zijad + Adam", note: "Åk 7" },
-  { period: "EM", activity: "Tjejgrupp", time: "15:20–16:15", location: "", staff: "Samah + Alia", note: "Åk 9" }
+  { school: "Kroksbäckskolan", period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Hoda / Zijad / Ali", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Samah + Zijad", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Zijad + Alia", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Samah + Alia", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Frukost", time: "07:30–08:15", location: "Kontoret, Rasthallen", staff: "Adam + Hoda", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Ali", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Zijad", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Adam", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Pedagogisk lunch", time: "11:30–11:50", location: "Matsalen", staff: "Zijad", note: "" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Alia + Adam", note: "Åk 4-6" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Samah + Zijad", note: "Åk 4-6" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastaktivitet", time: "12:00–12:30", location: "Skolgården", staff: "Ali + Alia", note: "Åk 4-6" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastaktivitet", time: "11:30–12:00", location: "Skolgården", staff: "Alia + Hoda", note: "Åk F-3" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Zijad + Ali", note: "Åk 7-9" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Ali + Enna", note: "Åk 7-9, grupp A+B" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastaktivitet", time: "11:50–12:50", location: "Skolgården", staff: "Zijad + Hoda", note: "Åk 7-9, grupp A+B" },
+  { school: "Kroksbäckskolan", period: "FM", activity: "Rastfotboll", time: "11:50–12:50", location: "Idrottshallen", staff: "Zijad", note: "Åk 7-9, grupp B+C" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Aktivitetsgrupp", time: "13:30–14:30", location: "2a:s klassrum", staff: "Enna + Alia", note: "Åk 2" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Roliga timmen", time: "14:10–15:20", location: "", staff: "Hoda + Enna + Adam", note: "Åk 2-3" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Aktivitetsgrupp", time: "13:10–14:10", location: "1:ans klassrum", staff: "Ali + Alia", note: "Åk 1" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Aktivitetsgrupp", time: "14:10–15:10", location: "Lågstadieklassrum", staff: "Ali + Samah", note: "Åk 3" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Aktivitetsgrupp", time: "13:10–14:10", location: "1:ans klassrum", staff: "Hoda + Zijad", note: "Åk 1" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Aktivitetsgrupp", time: "13:50–14:50", location: "4:ans klassrum", staff: "Samah + Alia", note: "Åk 4" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Tjejgrupp", time: "15:00–16:00", location: "4-6:an", staff: "Enna + Alia", note: "Åk 6" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Aktivitetsgrupp", time: "14:10–15:10", location: "4:an + 5:ans klassrum", staff: "Alia + Zijad", note: "Åk 5" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Bakning", time: "15:15–16:45", location: "Hemkunskapssal", staff: "Samah + Alia", note: "Åk 4-6" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Killgrupp", time: "15:00–16:00", location: "4-6:an", staff: "Ali + Adam", note: "Åk 6, Mellanstadiet" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Killgrupp", time: "16:15–17:15", location: "", staff: "Ali + Adam", note: "Åk 8" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Tjejgrupp", time: "16:15–17:15", location: "", staff: "Hoda + Enna", note: "Åk 8" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Tjejgrupp", time: "14:50–16:00", location: "", staff: "Hoda + Alia", note: "Åk 7" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Killgrupp", time: "15:20–16:15", location: "", staff: "Ali + Zijad", note: "Åk 9" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Killgrupp", time: "14:50–16:00", location: "", staff: "Zijad + Adam", note: "Åk 7" },
+  { school: "Kroksbäckskolan", period: "EM", activity: "Tjejgrupp", time: "15:20–16:15", location: "", staff: "Samah + Alia", note: "Åk 9" }
 ];
 function buddiesForLeader(branchId, leaderId){
   return buddiesFor(branchId).filter(b => b.leaderId === leaderId).sort((a,b) => b.ts - a.ts);
@@ -783,6 +797,9 @@ function renderPending(){
   const pending = regs(currentBranch)
     .filter(r => placedIds(r).length === 0)
     .sort((a,b) => a.ts - b.ts);
+
+  const countEl = document.getElementById("pendingCount");
+  if(countEl) countEl.textContent = pending.length ? `(${pending.length} st)` : "";
 
   if(!pending.length){
     wrap.innerHTML = '<p class="empty">Inga väntande ansökningar just nu.</p>';
@@ -1459,7 +1476,14 @@ function renderTodos(){
 
 /* ---------- Schema ---------- */
 
+function renderSchedSchoolOptions(){
+  const sel = document.getElementById("schedSchool");
+  const schools = SCHOOLS_BY_BRANCH[currentBranch] || [];
+  sel.innerHTML = schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+}
+
 document.getElementById("addSchedBtn").addEventListener("click", async () => {
+  const schoolInp = document.getElementById("schedSchool");
   const periodInp = document.getElementById("schedPeriod");
   const activityInp = document.getElementById("schedActivity");
   const timeInp = document.getElementById("schedTime");
@@ -1479,6 +1503,7 @@ document.getElementById("addSchedBtn").addEventListener("click", async () => {
   try{
     await addDoc(scheduleCol, {
       branch: currentBranch,
+      school: schoolInp.value,
       period: periodInp.value,
       activity,
       time,
@@ -1501,7 +1526,7 @@ document.getElementById("addSchedBtn").addEventListener("click", async () => {
 });
 
 document.getElementById("importScheduleBtn").addEventListener("click", async () => {
-  if(!confirm('Lägga till exempel-schemat (' + SEED_SCHEDULE.length + ' pass) för ' + branchInfo(currentBranch).name + '? Det går att redigera eller ta bort varje pass efteråt.')) return;
+  if(!confirm('Lägga till exempel-schemat (' + SEED_SCHEDULE.length + ' pass, Kroksbäckskolan) för ' + branchInfo(currentBranch).name + '? Det går att redigera eller ta bort varje pass efteråt.')) return;
   await Promise.all(SEED_SCHEDULE.map(item => addDoc(scheduleCol, {
     branch: currentBranch,
     ...item,
@@ -1530,19 +1555,23 @@ function scheduleRowHtml(s){
 }
 
 function scheduleEditRowHtml(s){
+  const schools = SCHOOLS_BY_BRANCH[currentBranch] || [];
   return `
     <tr data-sched-edit="${s.id}">
       <td colspan="6">
         <div class="sched-edit-row">
+          <select class="e-school">
+            ${schools.map(sc => `<option value="${escapeHtml(sc)}" ${s.school === sc ? "selected" : ""}>${escapeHtml(sc)}</option>`).join("")}
+          </select>
+          <select class="e-period">
+            <option value="FM" ${s.period === "FM" ? "selected" : ""}>FM</option>
+            <option value="EM" ${s.period === "EM" ? "selected" : ""}>EM</option>
+          </select>
           <input type="text" class="e-time" value="${escapeHtml(s.time)}" placeholder="Tid">
           <input type="text" class="e-activity" value="${escapeHtml(s.activity)}" placeholder="Pass/aktivitet">
           <input type="text" class="e-location" value="${escapeHtml(s.location || '')}" placeholder="Sal/plats">
           <input type="text" class="e-staff" value="${escapeHtml(s.staff || '')}" placeholder="Personal">
           <input type="text" class="e-note" value="${escapeHtml(s.note || '')}" placeholder="Grupp/anteckning">
-          <select class="e-period">
-            <option value="FM" ${s.period === "FM" ? "selected" : ""}>FM</option>
-            <option value="EM" ${s.period === "EM" ? "selected" : ""}>EM</option>
-          </select>
           <div class="sched-edit-actions">
             <button class="btn small sched-save-btn">Spara</button>
             <button class="ghostlink sched-cancel-btn">Avbryt</button>
@@ -1552,10 +1581,13 @@ function scheduleEditRowHtml(s){
     </tr>`;
 }
 
-function renderSchedulePeriod(period){
-  const entries = scheduleFor(currentBranch, period);
+function renderSchedulePeriod(school, period){
+  let entries = scheduleFor(currentBranch, school, period);
+  if(scheduleStaffFilter){
+    entries = entries.filter(e => staffNamesIn(e.staff).some(n => n.toLowerCase() === scheduleStaffFilter.toLowerCase()));
+  }
   if(!entries.length){
-    return `<p class="empty">Inga pass inlagda för ${period} än.</p>`;
+    return `<p class="empty">Inga pass ${scheduleStaffFilter ? 'för ' + escapeHtml(scheduleStaffFilter) + ' ' : ''}inlagda för ${period} än.</p>`;
   }
   return `
     <div class="table-scroll">
@@ -1566,14 +1598,35 @@ function renderSchedulePeriod(period){
     </div>`;
 }
 
+function renderSchedStaffFilterOptions(){
+  const sel = document.getElementById("schedStaffFilter");
+  const names = allStaffNames(currentBranch);
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Visa alla</option>' +
+    names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
+  if(names.includes(current)) sel.value = current;
+}
+
+document.getElementById("schedStaffFilter").addEventListener("change", (e) => {
+  scheduleStaffFilter = e.target.value;
+  renderSchedule();
+});
+
 function renderSchedule(){
+  renderSchedSchoolOptions();
+  renderSchedStaffFilterOptions();
   const wrap = document.getElementById("scheduleBoard");
-  wrap.innerHTML = `
-    <h4 class="stadium-heading">FM, ${escapeHtml(branchInfo(currentBranch).name)}</h4>
-    <div id="schedFM">${renderSchedulePeriod("FM")}</div>
-    <h4 class="stadium-heading" style="margin-top:24px;">EM, ${escapeHtml(branchInfo(currentBranch).name)}</h4>
-    <div id="schedEM">${renderSchedulePeriod("EM")}</div>
-  `;
+  const schools = SCHOOLS_BY_BRANCH[currentBranch] || [];
+
+  wrap.innerHTML = schools.map(school => `
+    <div class="branch-group">
+      <h3 class="branch-heading">${escapeHtml(school)}</h3>
+      <h4 class="stadium-heading">FM</h4>
+      <div>${renderSchedulePeriod(school, "FM")}</div>
+      <h4 class="stadium-heading" style="margin-top:24px;">EM</h4>
+      <div>${renderSchedulePeriod(school, "EM")}</div>
+    </div>
+  `).join("");
 
   wrap.querySelectorAll("[data-sched-remove]").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -1592,6 +1645,7 @@ function renderSchedule(){
       const editTr = wrap.querySelector(`[data-sched-edit="${id}"]`);
       editTr.querySelector(".sched-save-btn").addEventListener("click", async () => {
         await updateDoc(doc(db, "schedule", id), {
+          school: editTr.querySelector(".e-school").value,
           period: editTr.querySelector(".e-period").value,
           time: editTr.querySelector(".e-time").value.trim(),
           activity: editTr.querySelector(".e-activity").value.trim(),
