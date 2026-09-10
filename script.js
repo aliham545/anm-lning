@@ -90,6 +90,12 @@ function phoneLink(phone){
   return `<a href="tel:${dial}" class="phone-link">${escapeHtml(phone)}</a>`;
 }
 
+function goesHomeLabel(v){
+  if(v === true) return "Ja";
+  if(v === false) return "Nej";
+  return "–";
+}
+
 function activityLabelHtml(a){
   return escapeHtml(a.name) + (a.schedule ? ` <span class="act-time">· ${escapeHtml(a.schedule)}</span>` : '');
 }
@@ -99,6 +105,9 @@ function placedIds(r){
 }
 function wishIds(r){
   return Array.isArray(r.wishActivityIds) ? r.wishActivityIds : [];
+}
+function reserveIds(r){
+  return Array.isArray(r.reserveActivityIds) ? r.reserveActivityIds : [];
 }
 function actStadiums(a){
   return Array.isArray(a.stadiums) ? a.stadiums : (a.stadium ? [a.stadium] : []);
@@ -561,6 +570,7 @@ function showTicket(branchName, data, wishNames){
       <div class="row"><span>Skola</span><b>${escapeHtml(data.school)}</b></div>
       <div class="row"><span>Årskurs</span><b>${escapeHtml(data.grade)}</b></div>
       <div class="row"><span>Klass</span><b>${escapeHtml(data.klass)}</b></div>
+      <div class="row"><span>Går hem själv</span><b>${data.goesHomeAlone ? "Ja" : "Nej, ska hämtas"}</b></div>
       <div class="row"><span>Önskade aktiviteter</span><b>${escapeHtml(wishNames.join(', '))}</b></div>
       ${typeof data.familyChildren !== "undefined" ? `<div class="row"><span>Familj: barn / vuxna</span><b>${data.familyChildren} / ${data.familyAdults}</b></div>` : ''}
       <div class="row"><span>Förälder</span><b>${escapeHtml(data.parentName)}</b></div>
@@ -580,6 +590,7 @@ const REQUIRED_SIGNUP_FIELDS = ["s-name", "s-school", "s-grade", "s-class", "s-p
 function clearFieldErrors(){
   REQUIRED_SIGNUP_FIELDS.forEach(id => document.getElementById(id).classList.remove("field-error"));
   document.getElementById("s-gender").classList.remove("field-error");
+  document.getElementById("s-gohome").classList.remove("field-error");
   document.getElementById("s-activities").classList.remove("field-error");
   document.getElementById("familyCountFields").classList.remove("field-error");
 }
@@ -599,6 +610,8 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   const childName = document.getElementById("s-name").value.trim();
   const genderInput = document.querySelector('input[name="gender"]:checked');
   const gender = genderInput ? genderInput.value : "";
+  const gohomeInput = document.querySelector('input[name="gohome"]:checked');
+  const goesHomeAlone = gohomeInput ? gohomeInput.value === "ja" : null;
   const school = document.getElementById("s-school").value;
   const grade = document.getElementById("s-grade").value;
   const klass = document.getElementById("s-class").value.trim();
@@ -620,6 +633,7 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   }
   if(!childName) invalid("s-name");
   if(!gender) invalid("s-gender");
+  if(goesHomeAlone === null) invalid("s-gohome");
   if(!school) invalid("s-school");
   if(!grade) invalid("s-grade");
   if(!klass) invalid("s-class");
@@ -638,7 +652,7 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
     return;
   }
 
-  const data = { childName, gender, school, grade, klass, attendsFritids, childPhone, parentName, parentPhone, otherInfo };
+  const data = { childName, gender, goesHomeAlone, school, grade, klass, attendsFritids, childPhone, parentName, parentPhone, otherInfo };
   if(isFamilySignup){
     data.familyChildren = parseInt(familyChildrenInp.value, 10) || 0;
     data.familyAdults = parseInt(familyAdultsInp.value, 10) || 0;
@@ -795,7 +809,7 @@ document.getElementById("addActBtn").addEventListener("click", async () => {
 function renderPending(){
   const wrap = document.getElementById("pendingApps");
   const pending = regs(currentBranch)
-    .filter(r => placedIds(r).length === 0)
+    .filter(r => placedIds(r).length === 0 && reserveIds(r).length === 0)
     .sort((a,b) => a.ts - b.ts);
 
   const countEl = document.getElementById("pendingCount");
@@ -834,7 +848,7 @@ function renderPending(){
           <span class="badge ok">Åk ${escapeHtml(r.grade)} · ${escapeHtml(r.klass)}</span>
         </div>
         <div class="pending-meta">
-          <div>Skola: <b>${escapeHtml(r.school || '–')}</b> &nbsp;·&nbsp; Kön: <b>${escapeHtml(r.gender || '–')}</b> &nbsp;·&nbsp; Går på fritids: <b>${r.attendsFritids ? "Ja" : "Nej"}</b></div>
+          <div>Skola: <b>${escapeHtml(r.school || '–')}</b> &nbsp;·&nbsp; Kön: <b>${escapeHtml(r.gender || '–')}</b> &nbsp;·&nbsp; Går på fritids: <b>${r.attendsFritids ? "Ja" : "Nej"}</b> &nbsp;·&nbsp; Går hem själv: <b>${goesHomeLabel(r.goesHomeAlone)}</b></div>
           <div>Barnets telefon: <b>${r.childPhone ? phoneLink(r.childPhone) : '–'}</b></div>
           <div>Förälder: <b>${escapeHtml(r.parentName)}</b> &nbsp;·&nbsp; Telefon: <b>${phoneLink(r.parentPhone)}</b></div>
           <div>Önskemål: <b>${escapeHtml(wishIds(r).map(id => activityName(currentBranch, id)).join(', ') || '–')}</b></div>
@@ -859,8 +873,19 @@ function renderPending(){
         alert("Välj minst en aktivitet att placera i.");
         return;
       }
-      await updateDoc(doc(db, "registrations", regId), { placedActivityIds: chosen });
-      await Promise.all(chosen.map(id => updateDoc(doc(db, "activities", id), { placedCount: increment(1) }).catch(() => {})));
+      const toPlace = [];
+      const toReserve = [];
+      chosen.forEach(id => {
+        const act = acts(currentBranch).find(a => a.id === id);
+        const full = act && act.maxSpots && realPlacedCountFor(currentBranch, id) >= act.maxSpots;
+        if(full) toReserve.push(id); else toPlace.push(id);
+      });
+      await updateDoc(doc(db, "registrations", regId), { placedActivityIds: toPlace, reserveActivityIds: toReserve });
+      await Promise.all(toPlace.map(id => updateDoc(doc(db, "activities", id), { placedCount: increment(1) }).catch(() => {})));
+      if(toReserve.length){
+        const names = toReserve.map(id => activityName(currentBranch, id)).join(', ');
+        alert('Fullt just nu för: ' + names + '. Placerad i reservlistan istället — hittas under "Reservlista".');
+      }
     });
   });
 
@@ -868,6 +893,83 @@ function renderPending(){
     btn.addEventListener("click", async () => {
       if(!confirm("Ta bort den här ansökan helt?")) return;
       await deleteDoc(doc(db, "registrations", btn.dataset.removePending));
+    });
+  });
+}
+
+/* ---------- Reservlista ---------- */
+
+function renderReserveList(){
+  const wrap = document.getElementById("reserveApps");
+  const countEl = document.getElementById("reserveCount");
+  const branchActs = acts(currentBranch);
+  let totalWaiting = 0;
+
+  const groupsHtml = branchActs.map(act => {
+    const waiting = regs(currentBranch).filter(r => reserveIds(r).includes(act.id)).sort((a,b) => a.ts - b.ts);
+    if(!waiting.length) return "";
+    totalWaiting += waiting.length;
+    const rows = waiting.map(r => `
+      <tr data-reg="${r.id}" data-act="${act.id}">
+        <td data-label="Barn">${escapeHtml(r.childName)}</td>
+        <td data-label="Åk/Klass">${escapeHtml(r.grade)} / ${escapeHtml(r.klass)}</td>
+        <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
+        <td data-label="Telefon">${phoneLink(r.parentPhone)}</td>
+        <td data-label="" class="no-print stack-actions">
+          <button class="btn small reserve-place-btn">Placera</button>
+          <button class="rowbtn reserve-remove-btn">Ta bort från reserv</button>
+        </td>
+      </tr>`).join("");
+    const full = act.maxSpots && realPlacedCountFor(currentBranch, act.id) >= act.maxSpots;
+    return `
+      <div class="adm-act">
+        <div class="adm-act-head">
+          <div>
+            <span class="name">${escapeHtml(act.name)}</span>
+            <span class="count"> · ${realPlacedCountFor(currentBranch, act.id)}${act.maxSpots ? ' / ' + act.maxSpots : ''} placerade · ${waiting.length} i reserv</span>
+          </div>
+          ${full ? '<span class="badge full">Fortfarande fullt</span>' : '<span class="badge ok">Ledig plats!</span>'}
+        </div>
+        <div class="table-scroll">
+        <table class="responsive-stack">
+          <thead><tr><th>Barn</th><th>Åk/Klass</th><th>Förälder</th><th>Telefon</th><th class="no-print"></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        </div>
+      </div>`;
+  }).join("");
+
+  if(countEl) countEl.textContent = totalWaiting ? `(${totalWaiting} st)` : "";
+  wrap.innerHTML = totalWaiting ? groupsHtml : '<p class="empty">Ingen står i reserv just nu.</p>';
+
+  wrap.querySelectorAll(".reserve-place-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      const regId = tr.dataset.reg;
+      const actId = tr.dataset.act;
+      const r = regs(currentBranch).find(x => x.id === regId);
+      const act = acts(currentBranch).find(a => a.id === actId);
+      if(!r || !act) return;
+      if(act.maxSpots && realPlacedCountFor(currentBranch, actId) >= act.maxSpots){
+        if(!confirm(act.name + ' är fortfarande fullt. Placera ändå?')) return;
+      }
+      const newReserve = reserveIds(r).filter(id => id !== actId);
+      const newPlaced = [...placedIds(r), actId];
+      await updateDoc(doc(db, "registrations", regId), { reserveActivityIds: newReserve, placedActivityIds: newPlaced });
+      await updateDoc(doc(db, "activities", actId), { placedCount: increment(1) }).catch(() => {});
+    });
+  });
+
+  wrap.querySelectorAll(".reserve-remove-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if(!confirm("Ta bort från reservlistan för den här aktiviteten?")) return;
+      const tr = btn.closest("tr");
+      const regId = tr.dataset.reg;
+      const actId = tr.dataset.act;
+      const r = regs(currentBranch).find(x => x.id === regId);
+      if(!r) return;
+      const newReserve = reserveIds(r).filter(id => id !== actId);
+      await updateDoc(doc(db, "registrations", regId), { reserveActivityIds: newReserve });
     });
   });
 }
@@ -888,6 +990,7 @@ function renderAdmin(){
   renderNewActSchoolsOptions();
   reconcileCounts(currentBranch);
   renderPending();
+  renderReserveList();
   const wrap = document.getElementById("adminActivities");
   wrap.innerHTML = "";
   const branchActs = acts(currentBranch);
@@ -938,6 +1041,12 @@ function renderAdmin(){
         <div class="act-school-row">
           Skola: <b>${(act.schools && act.schools.length) ? escapeHtml(act.schools.join(', ')) : 'Alla skolor'}</b>
         </div>
+        <div class="act-maxspots-row" data-act-maxspots="${act.id}">
+          <span class="act-maxspots-view">
+            <span class="act-maxspots-text">Max platser: <b>${act.maxSpots ? escapeHtml(String(act.maxSpots)) : 'Obegränsat'}</b></span>
+            <button class="ghostlink maxspots-edit-btn">Ändra platser</button>
+          </span>
+        </div>
         <div class="table-scroll">
         <table class="responsive-stack">
           <thead><tr><th>Barn</th><th>Klass</th><th>Förälder</th><th>Förälders telefon</th><th></th></tr></thead>
@@ -971,13 +1080,36 @@ function renderAdmin(){
         });
       });
 
+      const maxSpotsRow = box.querySelector(`[data-act-maxspots="${act.id}"]`);
+      maxSpotsRow.querySelector(".maxspots-edit-btn").addEventListener("click", () => {
+        maxSpotsRow.innerHTML = `
+          <div class="act-schedule-edit">
+            <input type="number" min="0" class="maxspots-input" value="${act.maxSpots || ''}" placeholder="Lämna tomt = obegränsat">
+            <button class="btn small maxspots-save-btn">Spara</button>
+            <button class="ghostlink maxspots-cancel-btn">Avbryt</button>
+          </div>`;
+        maxSpotsRow.querySelector(".maxspots-save-btn").addEventListener("click", async () => {
+          const raw = maxSpotsRow.querySelector(".maxspots-input").value;
+          const newMax = raw.trim() === "" ? null : Math.max(0, parseInt(raw, 10) || 0);
+          const currentlyPlaced = realPlacedCountFor(currentBranch, act.id);
+          if(newMax !== null && newMax < currentlyPlaced){
+            if(!confirm(`Det är redan ${currentlyPlaced} placerade. Sätta max till ${newMax} ändå? (Ingen tas automatiskt bort.)`)) return;
+          }
+          await updateDoc(doc(db, "activities", act.id), { maxSpots: newMax });
+        });
+        maxSpotsRow.querySelector(".maxspots-cancel-btn").addEventListener("click", () => {
+          renderAdmin();
+        });
+      });
+
       box.querySelector(".del-x").addEventListener("click", async () => {
-        if(!confirm('Ta bort aktiviteten "' + act.name + '"? Den tas bort ur alla ansökningar/placeringar som nämner den.')) return;
-        const affected = regs(currentBranch).filter(r => wishIds(r).includes(act.id) || placedIds(r).includes(act.id));
+        if(!confirm('Ta bort aktiviteten "' + act.name + '"? Den tas bort ur alla ansökningar/placeringar/reserver som nämner den.')) return;
+        const affected = regs(currentBranch).filter(r => wishIds(r).includes(act.id) || placedIds(r).includes(act.id) || reserveIds(r).includes(act.id));
         await Promise.all(affected.map(r => {
           const newWish = wishIds(r).filter(id => id !== act.id);
           const newPlaced = placedIds(r).filter(id => id !== act.id);
-          return updateDoc(doc(db, "registrations", r.id), { wishActivityIds: newWish, placedActivityIds: newPlaced });
+          const newReserve = reserveIds(r).filter(id => id !== act.id);
+          return updateDoc(doc(db, "registrations", r.id), { wishActivityIds: newWish, placedActivityIds: newPlaced, reserveActivityIds: newReserve });
         }));
         await deleteDoc(doc(db, "activities", act.id));
       });
@@ -1014,7 +1146,7 @@ function renderAdmin(){
         const grade = st.id === "f" ? "F" : st.id === "lag" ? "1" : st.id === "mellan" ? "4" : st.id === "hog" ? "7" : "";
         await addDoc(registrationsCol, {
           branch: currentBranch, childName, klass, grade,
-          gender: "", school: "", attendsFritids: false, childPhone: "", otherInfo: "",
+          gender: "", school: "", attendsFritids: false, goesHomeAlone: null, childPhone: "", otherInfo: "",
           parentName, parentPhone,
           wishActivityIds: [act.id], placedActivityIds: [act.id], ts: Date.now()
         });
@@ -1084,6 +1216,7 @@ function renderDeltagarlista(){
             <td data-label="Åk">${escapeHtml(r.grade)}</td>
             <td data-label="Klass">${escapeHtml(r.klass)}</td>
             <td data-label="Fritids">${r.attendsFritids ? "Ja" : "Nej"}</td>
+            <td data-label="Går hem själv">${goesHomeLabel(r.goesHomeAlone)}</td>
             <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
             <td data-label="Förälders tel">${phoneLink(r.parentPhone)}</td>
             <td data-label="Barnets tel">${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
@@ -1093,7 +1226,7 @@ function renderDeltagarlista(){
             <td data-label="" class="no-print stack-actions"><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
           </tr>`;
         }).join("")
-      : `<tr><td colspan="13" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
+      : `<tr><td colspan="14" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
 
     const cardsHtml = list.length
       ? list.map(r => {
@@ -1115,6 +1248,7 @@ function renderDeltagarlista(){
               <span>${escapeHtml(r.gender || '–')}</span>
               <span>${escapeHtml(r.school || '–')}</span>
               <span>Fritids: ${r.attendsFritids ? "Ja" : "Nej"}</span>
+              <span class="${r.goesHomeAlone === false ? 'contact-card-warn' : ''}">Går hem själv: ${goesHomeLabel(r.goesHomeAlone)}</span>
             </div>
             <div class="contact-card-line"><b>Aktivitet(er):</b> ${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</div>
             ${typeof r.familyChildren !== "undefined" ? `<div class="contact-card-line"><b>Familj:</b> ${r.familyChildren} barn / ${r.familyAdults} vuxna</div>` : ''}
@@ -1128,7 +1262,7 @@ function renderDeltagarlista(){
       <h4 class="stadium-heading">${st.label} <span class="muted">(${st.sub}) · ${list.length} st</span></h4>
       <div class="table-scroll desktop-table">
       <table>
-        <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Familj: barn/vuxna</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
+        <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Går hem själv</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Familj: barn/vuxna</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       </div>
