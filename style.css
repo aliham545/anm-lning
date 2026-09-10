@@ -616,6 +616,22 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
 }
 .act-school-row b{color:var(--navy);}
 
+.act-maxspots-row{
+  padding:8px 16px;
+  background:var(--blue-pale);
+  border-bottom:1px solid var(--line);
+  font-size:13px;
+}
+.act-maxspots-view{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.act-maxspots-text{color:var(--text-soft);}
+.act-maxspots-text b{color:var(--navy);}
+
 /* ---------- Veckans kompis ---------- */
 
 .leader-card{
@@ -915,6 +931,11 @@ div.field-error{
   background:var(--blue-pale);
   padding:3px 9px;
   border-radius:999px;
+}
+.contact-card-meta span.contact-card-warn{
+  background:#FDECD2;
+  color:#8A5A0B;
+  font-weight:700;
 }
 .contact-card-line{font-size:13px;margin-bottom:4px;line-height:1.4;}
 .contact-card-line b{color:var(--text-soft);font-weight:700;}
