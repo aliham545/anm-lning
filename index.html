@@ -82,6 +82,12 @@
 
             <label class="checkbox-row"><input type="checkbox" id="s-fritids"> Barnet går på fritids</label>
 
+            <label>Får barnet gå hem själv?</label>
+            <div class="radio-row" id="s-gohome">
+              <label class="radio-pill"><input type="radio" name="gohome" value="ja"> Ja</label>
+              <label class="radio-pill"><input type="radio" name="gohome" value="nej"> Nej, ska hämtas</label>
+            </div>
+
             <label for="s-childphone">Barnets telefonnummer <span class="optional">(valfritt)</span></label>
             <input type="tel" id="s-childphone" placeholder="07X-XXX XX XX" autocomplete="off">
 
@@ -183,8 +189,14 @@
 
         <div class="card adm-section" id="pendingWrap">
           <h3 class="sectionTitle">Väntande ansökningar <span class="muted" id="pendingCount"></span></h3>
-          <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet.</p>
+          <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet — är den full hamnar de automatiskt i reservlistan istället.</p>
           <div id="pendingApps"></div>
+        </div>
+
+        <div class="card adm-section" id="reserveWrap">
+          <h3 class="sectionTitle">Reservlista <span class="muted" id="reserveCount"></span></h3>
+          <p class="sub">Barn som sökt till en aktivitet som var full. Placera dem så fort det finns plats.</p>
+          <div id="reserveApps"></div>
         </div>
 
         <div class="adm-section" id="adminActivities"></div>
