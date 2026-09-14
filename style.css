@@ -991,3 +991,56 @@ div.field-error{
   .sched-edit-actions{width:100%;}
   .sched-edit-actions .btn.small{flex:1;}
 }
+
+/* ---------- Kontaktad-kryssruta & flytta-till i roster ---------- */
+
+.contact-check{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:12px;
+  font-weight:600;
+  color:var(--navy);
+  white-space:nowrap;
+  cursor:pointer;
+}
+.contact-check input{width:16px;height:16px;accent-color:var(--blue);}
+.move-act-select{
+  font-size:12px;
+  padding:6px 8px;
+  border-radius:8px;
+  border:1.5px solid var(--line);
+  margin-right:6px;
+  max-width:160px;
+}
+.rowbtn.small{font-size:12px;padding:4px 8px;}
+
+/* ---------- Manuell redigering av deltagare ---------- */
+
+.edit-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));
+  gap:10px;
+}
+.edit-grid label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--text-soft);
+}
+.edit-grid label.checkbox-row-inline{
+  flex-direction:row;
+  align-items:center;
+  gap:6px;
+}
+.edit-grid input, .edit-grid select{
+  padding:8px 10px;
+  font-size:13px;
+  border-radius:8px;
+  border:1.5px solid var(--line);
+  font-family:'Nunito',sans-serif;
+}
+.edit-actions{display:flex;gap:8px;margin-top:12px;}
+.edit-actions .btn.small{margin:0;}
