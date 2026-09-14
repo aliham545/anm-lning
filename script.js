@@ -95,6 +95,15 @@ function goesHomeLabel(v){
   if(v === false) return "Nej";
   return "–";
 }
+function moveOptionsHtml(branchId, excludeActId){
+  return acts(branchId)
+    .filter(a => a.id !== excludeActId)
+    .map(a => {
+      const count = realPlacedCountFor(branchId, a.id);
+      const full = a.maxSpots && count >= a.maxSpots;
+      return `<option value="${a.id}">${escapeHtml(a.name)}${full ? ' (fullt)' : ''}</option>`;
+    }).join("");
+}
 
 function activityLabelHtml(a){
   return escapeHtml(a.name) + (a.schedule ? ` <span class="act-time">· ${escapeHtml(a.schedule)}</span>` : '');
@@ -1017,12 +1026,20 @@ function renderAdmin(){
               <td data-label="Klass">${escapeHtml(r.klass)}</td>
               <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
               <td data-label="Förälders telefon">${phoneLink(r.parentPhone)}</td>
+              <td data-label="Kontaktad"><label class="contact-check"><input type="checkbox" class="contacted-toggle" ${r.parentContacted ? "checked" : ""}> Kontaktat förälder</label></td>
+              <td data-label="Flytta till">
+                <select class="move-act-select">
+                  <option value="">Välj aktivitet…</option>
+                  ${moveOptionsHtml(currentBranch, act.id)}
+                </select>
+                <button class="rowbtn small move-act-btn">Flytta</button>
+              </td>
               <td data-label="" class="stack-actions">
-                <button class="rowbtn unplace-btn" title="Tar bara bort barnet från den här aktiviteten">Flytta bort</button>
+                <button class="rowbtn unplace-btn" title="Tar bara bort barnet från den här aktiviteten">Ta bort från aktivitet</button>
                 <button class="rowbtn" data-reg-remove="${r.id}" title="Tar bort hela anmälan">Ta bort deltagare</button>
               </td>
             </tr>`).join("")
-        : `<tr><td colspan="5" class="empty">Ingen placerad här än.</td></tr>`;
+        : `<tr><td colspan="7" class="empty">Ingen placerad här än.</td></tr>`;
 
       box.innerHTML = `
         <div class="adm-act-head">
@@ -1049,7 +1066,7 @@ function renderAdmin(){
         </div>
         <div class="table-scroll">
         <table class="responsive-stack">
-          <thead><tr><th>Barn</th><th>Klass</th><th>Förälder</th><th>Förälders telefon</th><th></th></tr></thead>
+          <thead><tr><th>Barn</th><th>Klass</th><th>Förälder</th><th>Förälders telefon</th><th>Kontaktad</th><th>Flytta till</th><th></th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
         </div>
@@ -1130,6 +1147,37 @@ function renderAdmin(){
           const newPlaced = placedIds(r).filter(id => id !== act.id);
           await updateDoc(doc(db, "registrations", regId), { placedActivityIds: newPlaced });
           await updateDoc(doc(db, "activities", act.id), { placedCount: increment(-1) }).catch(() => {});
+        });
+      });
+
+      box.querySelectorAll(".contacted-toggle").forEach(cb => {
+        cb.addEventListener("change", async () => {
+          const tr = cb.closest("tr");
+          const regId = tr.dataset.reg;
+          await updateDoc(doc(db, "registrations", regId), { parentContacted: cb.checked });
+        });
+      });
+
+      box.querySelectorAll(".move-act-btn").forEach(b => {
+        b.addEventListener("click", async () => {
+          const tr = b.closest("tr");
+          const regId = tr.dataset.reg;
+          const targetId = tr.querySelector(".move-act-select").value;
+          if(!targetId){
+            alert("Välj vilken aktivitet barnet ska flyttas till.");
+            return;
+          }
+          const r = regs(currentBranch).find(x => x.id === regId);
+          const targetAct = acts(currentBranch).find(a => a.id === targetId);
+          if(!r || !targetAct) return;
+          if(targetAct.maxSpots && realPlacedCountFor(currentBranch, targetId) >= targetAct.maxSpots){
+            if(!confirm(targetAct.name + ' är redan fullt. Flytta ändå?')) return;
+          }
+          const newPlaced = placedIds(r).filter(id => id !== act.id);
+          newPlaced.push(targetId);
+          await updateDoc(doc(db, "registrations", regId), { placedActivityIds: newPlaced });
+          await updateDoc(doc(db, "activities", act.id), { placedCount: increment(-1) }).catch(() => {});
+          await updateDoc(doc(db, "activities", targetId), { placedCount: increment(1) }).catch(() => {});
         });
       });
 
@@ -1217,22 +1265,26 @@ function renderDeltagarlista(){
             <td data-label="Klass">${escapeHtml(r.klass)}</td>
             <td data-label="Fritids">${r.attendsFritids ? "Ja" : "Nej"}</td>
             <td data-label="Går hem själv">${goesHomeLabel(r.goesHomeAlone)}</td>
+            <td data-label="Kontaktad"><label class="contact-check"><input type="checkbox" class="contacted-toggle" ${r.parentContacted ? "checked" : ""}> Kontaktad</label></td>
             <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
             <td data-label="Förälders tel">${phoneLink(r.parentPhone)}</td>
             <td data-label="Barnets tel">${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
             <td data-label="Aktivitet(er)">${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</td>
             <td data-label="Familj: barn/vuxna">${typeof r.familyChildren !== "undefined" ? (r.familyChildren + ' / ' + r.familyAdults) : ''}</td>
             <td data-label="Övrig info">${r.otherInfo ? escapeHtml(r.otherInfo) : ''}</td>
-            <td data-label="" class="no-print stack-actions"><button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button></td>
+            <td data-label="" class="no-print stack-actions">
+              <button class="rowbtn contact-edit-btn">Ändra</button>
+              <button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button>
+            </td>
           </tr>`;
         }).join("")
-      : `<tr><td colspan="14" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
+      : `<tr><td colspan="15" class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</td></tr>`;
 
     const cardsHtml = list.length
       ? list.map(r => {
           const placedNames = placedIds(r).map(id => activityName(currentBranch, id));
           return `
-          <div class="contact-card">
+          <div class="contact-card" data-reg="${r.id}">
             <div class="contact-card-head">
               <span class="contact-card-name">${escapeHtml(r.childName)}</span>
               <span class="badge ok">Åk ${escapeHtml(r.grade)} · ${escapeHtml(r.klass)}</span>
@@ -1250,10 +1302,14 @@ function renderDeltagarlista(){
               <span>Fritids: ${r.attendsFritids ? "Ja" : "Nej"}</span>
               <span class="${r.goesHomeAlone === false ? 'contact-card-warn' : ''}">Går hem själv: ${goesHomeLabel(r.goesHomeAlone)}</span>
             </div>
+            <label class="contact-check" style="margin-bottom:8px;"><input type="checkbox" class="contacted-toggle" ${r.parentContacted ? "checked" : ""}> Kontaktat förälder</label>
             <div class="contact-card-line"><b>Aktivitet(er):</b> ${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</div>
             ${typeof r.familyChildren !== "undefined" ? `<div class="contact-card-line"><b>Familj:</b> ${r.familyChildren} barn / ${r.familyAdults} vuxna</div>` : ''}
             ${r.otherInfo ? `<div class="contact-card-line"><b>Övrig info:</b> ${escapeHtml(r.otherInfo)}</div>` : ''}
-            <button class="rowbtn no-print" data-contact-remove="${r.id}">Ta bort</button>
+            <div class="edit-actions">
+              <button class="rowbtn no-print contact-edit-btn">Ändra</button>
+              <button class="rowbtn no-print" data-contact-remove="${r.id}">Ta bort</button>
+            </div>
           </div>`;
         }).join("")
       : `<p class="empty">${contactFilter ? 'Ingen matchning.' : 'Ingen anmäld i den här gruppen än.'}</p>`;
@@ -1262,7 +1318,7 @@ function renderDeltagarlista(){
       <h4 class="stadium-heading">${st.label} <span class="muted">(${st.sub}) · ${list.length} st</span></h4>
       <div class="table-scroll desktop-table">
       <table>
-        <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Går hem själv</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Familj: barn/vuxna</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
+        <thead><tr><th>Barn</th><th>Kön</th><th>Skola</th><th>Åk</th><th>Klass</th><th>Fritids</th><th>Går hem själv</th><th>Kontaktad</th><th>Förälder</th><th>Förälders tel</th><th>Barnets tel</th><th>Aktivitet(er)</th><th>Familj: barn/vuxna</th><th>Övrig info</th><th class="no-print"></th></tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
       </div>
@@ -1275,6 +1331,97 @@ function renderDeltagarlista(){
       if(!confirm("Ta bort den här deltagaren helt?")) return;
       await deleteRegistrationEntirely(b.dataset.contactRemove);
     });
+  });
+
+  wrap.querySelectorAll(".contacted-toggle").forEach(cb => {
+    cb.addEventListener("change", async () => {
+      const regId = cb.closest("[data-reg]").dataset.reg;
+      await updateDoc(doc(db, "registrations", regId), { parentContacted: cb.checked });
+    });
+  });
+
+  wrap.querySelectorAll(".contact-edit-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const host = btn.closest("[data-reg]");
+      const regId = host.dataset.reg;
+      const r = regs(currentBranch).find(x => x.id === regId);
+      if(!r) return;
+      const isRow = host.tagName === "TR";
+      const formHtml = contactEditFormHtml(r);
+      if(isRow){
+        host.innerHTML = `<td colspan="15">${formHtml}</td>`;
+      }else{
+        host.innerHTML = formHtml;
+      }
+      bindContactEditHandlers(host, r);
+    });
+  });
+}
+
+function contactEditFormHtml(r){
+  const schools = SCHOOLS_BY_BRANCH[currentBranch] || [];
+  const grades = ["F","1","2","3","4","5","6","7","8","9"];
+  return `
+    <div class="edit-grid">
+      <label>Barnets namn<input type="text" class="ef-name" value="${escapeHtml(r.childName)}"></label>
+      <label>Kön<select class="ef-gender">
+        <option value="Flicka" ${r.gender === "Flicka" ? "selected" : ""}>Flicka</option>
+        <option value="Pojke" ${r.gender === "Pojke" ? "selected" : ""}>Pojke</option>
+        <option value="Annat" ${r.gender === "Annat" ? "selected" : ""}>Annat</option>
+      </select></label>
+      <label>Skola<select class="ef-school">
+        ${schools.map(s => `<option value="${escapeHtml(s)}" ${r.school === s ? "selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+      </select></label>
+      <label>Årskurs<select class="ef-grade">
+        ${grades.map(g => `<option value="${g}" ${String(r.grade) === g ? "selected" : ""}>${g === "F" ? "Förskoleklass" : "Åk " + g}</option>`).join("")}
+      </select></label>
+      <label>Klass<input type="text" class="ef-klass" value="${escapeHtml(r.klass)}"></label>
+      <label>Går hem själv<select class="ef-gohome">
+        <option value="" ${(r.goesHomeAlone === null || typeof r.goesHomeAlone === "undefined") ? "selected" : ""}>Okänt</option>
+        <option value="ja" ${r.goesHomeAlone === true ? "selected" : ""}>Ja</option>
+        <option value="nej" ${r.goesHomeAlone === false ? "selected" : ""}>Nej</option>
+      </select></label>
+      <label class="checkbox-row-inline"><input type="checkbox" class="ef-fritids" ${r.attendsFritids ? "checked" : ""}> Går på fritids</label>
+      <label>Förälders namn<input type="text" class="ef-parentname" value="${escapeHtml(r.parentName)}"></label>
+      <label>Förälders telefon<input type="tel" class="ef-parentphone" value="${escapeHtml(r.parentPhone)}"></label>
+      <label>Barnets telefon<input type="tel" class="ef-childphone" value="${escapeHtml(r.childPhone || '')}"></label>
+      <label>Övrig info<input type="text" class="ef-otherinfo" value="${escapeHtml(r.otherInfo || '')}"></label>
+      ${typeof r.familyChildren !== "undefined" ? `
+      <label>Familj: barn<input type="number" min="0" class="ef-familychildren" value="${r.familyChildren}"></label>
+      <label>Familj: vuxna<input type="number" min="0" class="ef-familyadults" value="${r.familyAdults}"></label>` : ''}
+    </div>
+    <div class="edit-actions">
+      <button class="btn small ef-save-btn">Spara</button>
+      <button class="ghostlink ef-cancel-btn">Avbryt</button>
+    </div>`;
+}
+
+function bindContactEditHandlers(host, r){
+  host.querySelector(".ef-save-btn").addEventListener("click", async () => {
+    const gohomeVal = host.querySelector(".ef-gohome").value;
+    const updates = {
+      childName: host.querySelector(".ef-name").value.trim(),
+      gender: host.querySelector(".ef-gender").value,
+      school: host.querySelector(".ef-school").value,
+      grade: host.querySelector(".ef-grade").value,
+      klass: host.querySelector(".ef-klass").value.trim(),
+      attendsFritids: host.querySelector(".ef-fritids").checked,
+      goesHomeAlone: gohomeVal === "" ? null : gohomeVal === "ja",
+      parentName: host.querySelector(".ef-parentname").value.trim(),
+      parentPhone: host.querySelector(".ef-parentphone").value.trim(),
+      childPhone: host.querySelector(".ef-childphone").value.trim(),
+      otherInfo: host.querySelector(".ef-otherinfo").value.trim()
+    };
+    const fc = host.querySelector(".ef-familychildren");
+    const fa = host.querySelector(".ef-familyadults");
+    if(fc && fa){
+      updates.familyChildren = parseInt(fc.value, 10) || 0;
+      updates.familyAdults = parseInt(fa.value, 10) || 0;
+    }
+    await updateDoc(doc(db, "registrations", r.id), updates);
+  });
+  host.querySelector(".ef-cancel-btn").addEventListener("click", () => {
+    renderDeltagarlista();
   });
 }
 
