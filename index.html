@@ -222,7 +222,7 @@
         <div class="card adm-section" id="deltagarlistaWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
             <h3 class="sectionTitle" style="margin:0;">Deltagare &amp; kontaktuppgifter</h3>
-            <div style="margin-left:auto;display:flex;gap:10px;">
+            <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
               <button class="rowbtn" id="printListBtn">Skriv ut</button>
               <button class="rowbtn" id="clearRegsBtn">Rensa alla anmälningar</button>
             </div>
@@ -231,6 +231,19 @@
           <input type="text" id="contactSearch" placeholder="Sök på namn eller klass...">
           <div id="deltagarlista"></div>
         </div>
+
+        <div class="card adm-section" id="fritidslistaWrap">
+          <div class="adm-topbar" style="margin-bottom:4px;">
+            <h3 class="sectionTitle" style="margin:0;">Fritidslista</h3>
+            <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="rowbtn" id="printFritidsBtn">Skriv ut</button>
+              <button class="rowbtn" id="exportFritidsWordBtn">Exportera till Word</button>
+            </div>
+          </div>
+          <p class="sub">Bara de barn som är markerade "Går på fritids" — för utskrift eller export till ett Word-dokument.</p>
+          <div id="fritidslista"></div>
+        </div>
+        <div id="fritidsPrintArea" class="print-only"></div>
       </div>
 
       <div id="adm-sub-stats" class="adm-subview">
