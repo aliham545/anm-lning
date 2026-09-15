@@ -254,8 +254,29 @@ function activityName(branchId, id){
   const a = acts(branchId).find(a => a.id === id);
   return a ? a.name : "Okänd aktivitet";
 }
+function activityNameWithSchedule(branchId, id){
+  const a = acts(branchId).find(a => a.id === id);
+  if(!a) return "Okänd aktivitet";
+  return a.schedule ? `${a.name} (${a.schedule})` : a.name;
+}
+
+const WEEKDAY_ORDER = { "måndag": 1, "tisdag": 2, "onsdag": 3, "torsdag": 4, "fredag": 5, "lördag": 6, "söndag": 7 };
+function activitySortKey(a){
+  const s = String(a.schedule || "").toLowerCase();
+  let day = 99;
+  for(const name in WEEKDAY_ORDER){
+    if(s.includes(name)){ day = WEEKDAY_ORDER[name]; break; }
+  }
+  const m = s.match(/(\d{1,2})[:.](\d{2})/);
+  const minutes = m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 9999;
+  return day * 10000 + minutes;
+}
+function sortByDay(list){
+  return list.slice().sort((a, b) => activitySortKey(a) - activitySortKey(b));
+}
+
 function activitiesForStadium(branchId, stadium){
-  return acts(branchId).filter(a => actStadiums(a).includes(stadium));
+  return sortByDay(acts(branchId).filter(a => actStadiums(a).includes(stadium)));
 }
 function activityMatchesSchool(a, school){
   return !a.schools || !a.schools.length || !school || a.schools.includes(school);
@@ -263,6 +284,12 @@ function activityMatchesSchool(a, school){
 function leadersFor(branchId){ return leadersByBranch[branchId] || []; }
 function buddiesFor(branchId){ return buddiesByBranch[branchId] || []; }
 function statsFor(branchId){ return (statsByBranch[branchId] || []).slice().sort((a,b) => (b.date || '').localeCompare(a.date || '') || b.ts - a.ts); }
+function fritidsListFor(branchId){
+  return regs(branchId)
+    .filter(r => r.attendsFritids)
+    .slice()
+    .sort((a, b) => (gradeSortValue(a.grade) - gradeSortValue(b.grade)) || a.childName.localeCompare(b.childName, 'sv'));
+}
 function todosFor(branchId){ return (todosByBranch[branchId] || []).slice().sort((a,b) => b.ts - a.ts); }
 
 function parseSortMinutes(timeStr){
@@ -911,7 +938,7 @@ function renderPending(){
 function renderReserveList(){
   const wrap = document.getElementById("reserveApps");
   const countEl = document.getElementById("reserveCount");
-  const branchActs = acts(currentBranch);
+  const branchActs = sortByDay(acts(currentBranch));
   let totalWaiting = 0;
 
   const groupsHtml = branchActs.map(act => {
@@ -1024,6 +1051,7 @@ function renderAdmin(){
             <tr data-reg="${r.id}">
               <td data-label="Barn">${escapeHtml(r.childName)}</td>
               <td data-label="Klass">${escapeHtml(r.klass)}</td>
+              <td data-label="Fritids">${r.attendsFritids ? "Ja" : "Nej"}</td>
               <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
               <td data-label="Förälders telefon">${phoneLink(r.parentPhone)}</td>
               <td data-label="Kontaktad"><label class="contact-check"><input type="checkbox" class="contacted-toggle" ${r.parentContacted ? "checked" : ""}> Kontaktat förälder</label></td>
@@ -1039,7 +1067,7 @@ function renderAdmin(){
                 <button class="rowbtn" data-reg-remove="${r.id}" title="Tar bort hela anmälan">Ta bort deltagare</button>
               </td>
             </tr>`).join("")
-        : `<tr><td colspan="7" class="empty">Ingen placerad här än.</td></tr>`;
+        : `<tr><td colspan="8" class="empty">Ingen placerad här än.</td></tr>`;
 
       box.innerHTML = `
         <div class="adm-act-head">
@@ -1066,7 +1094,7 @@ function renderAdmin(){
         </div>
         <div class="table-scroll">
         <table class="responsive-stack">
-          <thead><tr><th>Barn</th><th>Klass</th><th>Förälder</th><th>Förälders telefon</th><th>Kontaktad</th><th>Flytta till</th><th></th></tr></thead>
+          <thead><tr><th>Barn</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders telefon</th><th>Kontaktad</th><th>Flytta till</th><th></th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
         </div>
@@ -1208,6 +1236,7 @@ function renderAdmin(){
   });
 
   renderDeltagarlista();
+  renderFritidslista();
   renderBuddies();
   renderStats();
   renderTodos();
@@ -1424,6 +1453,91 @@ function bindContactEditHandlers(host, r){
     renderDeltagarlista();
   });
 }
+
+/* ---------- Fritidslista ---------- */
+
+function fritidslistaTableHtml(list){
+  return `
+    <div class="table-scroll desktop-table">
+    <table class="responsive-stack">
+      <thead><tr><th>Barn</th><th>Åk</th><th>Klass</th><th>Aktivitet(er)</th></tr></thead>
+      <tbody>
+        ${list.map(r => `
+          <tr>
+            <td data-label="Barn">${escapeHtml(r.childName)}</td>
+            <td data-label="Åk">${escapeHtml(r.grade)}</td>
+            <td data-label="Klass">${escapeHtml(r.klass)}</td>
+            <td data-label="Aktivitet(er)">${placedIds(r).length ? escapeHtml(placedIds(r).map(id => activityNameWithSchedule(currentBranch, id)).join('; ')) : '<span class="muted">Väntar på placering</span>'}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+    </div>`;
+}
+
+function renderFritidslista(){
+  const wrap = document.getElementById("fritidslista");
+  const list = fritidsListFor(currentBranch);
+  if(!list.length){
+    wrap.innerHTML = '<p class="empty">Inga barn markerade som "Går på fritids" än.</p>';
+    document.getElementById("fritidsPrintArea").innerHTML = "";
+    return;
+  }
+  wrap.innerHTML = `<p class="muted" style="margin-bottom:12px;">${list.length} st går på fritids.</p>` + fritidslistaTableHtml(list);
+
+  document.getElementById("fritidsPrintArea").innerHTML = `
+    <h3 class="printTitle">Fritidslista · ${escapeHtml(branchInfo(currentBranch).name)} · ${new Date().toLocaleDateString('sv-SE')}</h3>
+    ${fritidslistaTableHtml(list)}`;
+}
+
+document.getElementById("printFritidsBtn").addEventListener("click", () => {
+  document.body.classList.add("printing-fritids");
+  window.print();
+});
+
+function exportHtmlToWord(filename, title, bodyHtml){
+  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head><meta charset="utf-8"><title>${title}</title>
+    <style>
+      body{font-family:Calibri,Arial,sans-serif;}
+      h1{font-size:18px;color:#12314F;}
+      table{border-collapse:collapse;width:100%;}
+      th,td{border:1px solid #888;padding:6px 10px;font-size:12px;text-align:left;}
+      th{background:#DCEAFB;}
+    </style></head>
+    <body>${bodyHtml}</body></html>`;
+  const blob = new Blob(['\ufeff', html], { type: "application/msword" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("exportFritidsWordBtn").addEventListener("click", () => {
+  const list = fritidsListFor(currentBranch);
+  if(!list.length){
+    alert('Inga barn markerade som "Går på fritids" att exportera.');
+    return;
+  }
+  const rows = list.map(r => `
+    <tr>
+      <td>${escapeHtml(r.childName)}</td>
+      <td>${escapeHtml(r.grade)}</td>
+      <td>${escapeHtml(r.klass)}</td>
+      <td>${placedIds(r).length ? escapeHtml(placedIds(r).map(id => activityNameWithSchedule(currentBranch, id)).join('; ')) : 'Väntar på placering'}</td>
+    </tr>`).join("");
+  const body = `
+    <h1>Fritidslista – ${escapeHtml(branchInfo(currentBranch).name)}</h1>
+    <p>${new Date().toLocaleDateString('sv-SE')}</p>
+    <table>
+      <thead><tr><th>Namn</th><th>Åk</th><th>Klass</th><th>Aktivitet(er)</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  exportHtmlToWord("fritidslista.doc", "Fritidslista", body);
+});
 
 /* ---------- Veckans kompis ---------- */
 
@@ -1691,7 +1805,7 @@ document.getElementById("printStatsBtn").addEventListener("click", () => {
   window.print();
 });
 window.addEventListener("afterprint", () => {
-  document.body.classList.remove("printing-stats", "printing-participants", "printing-schedule");
+  document.body.classList.remove("printing-stats", "printing-participants", "printing-schedule", "printing-fritids");
 });
 
 /* ---------- Att göra ---------- */
@@ -1954,6 +2068,43 @@ function initSubTabs(){
     });
   });
 }
+
+/* ---------- Dra för att scrolla i sidled (tabeller) ---------- */
+// Gör det möjligt att klicka och dra var som helst på en rad för att scrolla
+// i sidled, istället för att behöva nå scrollisten längst ner på tabellen.
+
+(function enableDragScroll(){
+  let drag = null;
+  document.addEventListener("mousedown", (e) => {
+    const el = e.target.closest(".table-scroll");
+    if(!el || el.scrollWidth <= el.clientWidth) return;
+    drag = { el, startX: e.pageX, scrollLeft: el.scrollLeft, moved: false };
+    el.classList.add("dragging");
+  });
+  document.addEventListener("mousemove", (e) => {
+    if(!drag) return;
+    const dx = e.pageX - drag.startX;
+    if(Math.abs(dx) > 4) drag.moved = true;
+    if(drag.moved) e.preventDefault();
+    drag.el.scrollLeft = drag.scrollLeft - dx;
+  });
+  document.addEventListener("mouseup", () => {
+    if(!drag) return;
+    drag.el.classList.remove("dragging");
+    drag = null;
+  });
+  document.addEventListener("mouseleave", () => {
+    if(!drag) return;
+    drag.el.classList.remove("dragging");
+    drag = null;
+  });
+  document.addEventListener("click", (e) => {
+    if(drag && drag.moved){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+})();
 
 function init(){
   renderGate();
