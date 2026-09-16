@@ -146,17 +146,19 @@
       </div>
 
       <div class="adm-subtabs">
-        <button class="subtabbtn active" data-subtab="activities">Aktiviteter</button>
-        <button class="subtabbtn" data-subtab="buddies">Veckans kompis</button>
-        <button class="subtabbtn" data-subtab="participants">Deltagare</button>
-        <button class="subtabbtn" data-subtab="stats">Statistik</button>
-        <button class="subtabbtn" data-subtab="todo">Att göra</button>
-        <button class="subtabbtn" data-subtab="schedule">Schema</button>
+        <button class="subtabbtn active" data-subtab="activities"><span class="subtab-icon">📋</span> Aktiviteter</button>
+        <button class="subtabbtn" data-subtab="buddies"><span class="subtab-icon">⭐</span> Veckans kompis</button>
+        <button class="subtabbtn" data-subtab="participants"><span class="subtab-icon">👥</span> Deltagare</button>
+        <button class="subtabbtn" data-subtab="stats"><span class="subtab-icon">📊</span> Statistik</button>
+        <button class="subtabbtn" data-subtab="todo"><span class="subtab-icon">✅</span> Att göra</button>
+        <button class="subtabbtn" data-subtab="schedule"><span class="subtab-icon">🕐</span> Schema</button>
       </div>
+
+      <div id="adminOverview" class="admin-overview"></div>
 
       <div id="adm-sub-activities" class="adm-subview active">
         <div class="card adm-section">
-          <h3 class="sectionTitle">Lägg till aktivitet</h3>
+          <h3 class="sectionTitle">➕ Lägg till aktivitet</h3>
           <p class="sub">Skapa en ny aktivitet. Välj en eller flera grupper den passar för.</p>
           <div class="toolbar">
             <div class="field">
@@ -171,7 +173,7 @@
               <label>Max platser</label>
               <input type="number" id="newActMax" placeholder="valfritt" min="1">
             </div>
-            <button class="btn small" id="addActBtn">Lägg till</button>
+            <button class="btn small" id="addActBtn">➕ Lägg till</button>
           </div>
           <label>Grupper (välj en eller flera)</label>
           <div class="radio-row" id="newActStadiums">
@@ -187,14 +189,14 @@
           <p class="err" id="newAct-err"></p>
         </div>
 
-        <div class="card adm-section" id="pendingWrap">
-          <h3 class="sectionTitle">Väntande ansökningar <span class="muted" id="pendingCount"></span></h3>
+        <div class="card adm-section accent-pending" id="pendingWrap">
+          <h3 class="sectionTitle">🔵 Väntande ansökningar <span class="muted" id="pendingCount"></span></h3>
           <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet — är den full hamnar de automatiskt i reservlistan istället.</p>
           <div id="pendingApps"></div>
         </div>
 
-        <div class="card adm-section" id="reserveWrap">
-          <h3 class="sectionTitle">Reservlista <span class="muted" id="reserveCount"></span></h3>
+        <div class="card adm-section accent-reserve" id="reserveWrap">
+          <h3 class="sectionTitle">🟠 Reservlista <span class="muted" id="reserveCount"></span></h3>
           <p class="sub">Barn som sökt till en aktivitet som var full. Placera dem så fort det finns plats.</p>
           <div id="reserveApps"></div>
         </div>
@@ -204,14 +206,14 @@
 
       <div id="adm-sub-buddies" class="adm-subview">
         <div class="card adm-section" id="buddiesWrap">
-          <h3 class="sectionTitle">Veckans kompis</h3>
+          <h3 class="sectionTitle">⭐ Veckans kompis</h3>
           <p class="sub">Upp till 10 ledare, varje ledare lägger till 3 "veckans kompis" per vecka: namn, anledning och föräldrarnas respons.</p>
           <div class="toolbar">
             <div class="field">
               <label>Ledarens namn</label>
               <input type="text" id="newLeaderName" placeholder="t.ex. Anna">
             </div>
-            <button class="btn small" id="addLeaderBtn">Lägg till ledare</button>
+            <button class="btn small" id="addLeaderBtn">➕ Lägg till ledare</button>
           </div>
           <p class="err" id="newLeader-err"></p>
           <div id="leadersList"></div>
@@ -221,10 +223,10 @@
       <div id="adm-sub-participants" class="adm-subview">
         <div class="card adm-section" id="deltagarlistaWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">Deltagare &amp; kontaktuppgifter</h3>
+            <h3 class="sectionTitle" style="margin:0;">👥 Deltagare &amp; kontaktuppgifter</h3>
             <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="rowbtn" id="printListBtn">Skriv ut</button>
-              <button class="rowbtn" id="clearRegsBtn">Rensa alla anmälningar</button>
+              <button class="rowbtn" id="printListBtn">🖨️ Skriv ut</button>
+              <button class="rowbtn" id="clearRegsBtn">🗑️ Rensa alla anmälningar</button>
             </div>
           </div>
           <p class="sub">Alla anmälda, uppdelade per årskursgrupp. Sök eller ring direkt via telefonnumret.</p>
@@ -234,10 +236,10 @@
 
         <div class="card adm-section" id="fritidslistaWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">Fritidslista</h3>
+            <h3 class="sectionTitle" style="margin:0;">🏠 Fritidslista</h3>
             <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="rowbtn" id="printFritidsBtn">Skriv ut</button>
-              <button class="rowbtn" id="exportFritidsWordBtn">Exportera till Word</button>
+              <button class="rowbtn" id="printFritidsBtn">🖨️ Skriv ut</button>
+              <button class="rowbtn" id="exportFritidsWordBtn">📄 Exportera till Word</button>
             </div>
           </div>
           <p class="sub">Bara de barn som är markerade "Går på fritids" — för utskrift eller export till ett Word-dokument.</p>
@@ -249,8 +251,8 @@
       <div id="adm-sub-stats" class="adm-subview">
         <div class="card adm-section" id="statsWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">Statistik</h3>
-            <button class="rowbtn" id="printStatsBtn" style="margin-left:auto;">Skriv ut</button>
+            <h3 class="sectionTitle" style="margin:0;">📊 Statistik</h3>
+            <button class="rowbtn" id="printStatsBtn" style="margin-left:auto;">🖨️ Skriv ut</button>
           </div>
           <p class="sub">Fyll i antal deltagare per aktivitet/tillfälle. Du kan skriva in aktiviteter som inte finns som en aktuell aktivitet.</p>
           <div class="toolbar">
@@ -269,7 +271,7 @@
             <div class="field maxfield"><label>Flickor</label><input type="number" id="statGirls" min="0" placeholder="0"></div>
             <div class="field maxfield"><label>Kvinnor</label><input type="number" id="statWomen" min="0" placeholder="0"></div>
             <div class="field maxfield"><label>Män</label><input type="number" id="statMen" min="0" placeholder="0"></div>
-            <button class="btn small" id="addStatBtn">Lägg till</button>
+            <button class="btn small" id="addStatBtn">➕ Lägg till</button>
           </div>
           <p class="err" id="newStat-err"></p>
 
@@ -281,7 +283,7 @@
 
       <div id="adm-sub-todo" class="adm-subview">
         <div class="card adm-section" id="todoWrap">
-          <h3 class="sectionTitle">Att göra</h3>
+          <h3 class="sectionTitle">✅ Att göra</h3>
           <p class="sub">Lappar för sånt som behöver göras — lägg till en uppgift med en kort beskrivning, och ta bort den när den är klar.</p>
           <div class="toolbar">
             <div class="field">
@@ -291,7 +293,7 @@
           </div>
           <label>Beskrivning <span class="optional">(valfritt)</span></label>
           <textarea id="newTodoDesc" rows="2" placeholder="Mer detaljer..."></textarea>
-          <button class="btn small" id="addTodoBtn">Lägg till lapp</button>
+          <button class="btn small" id="addTodoBtn">➕ Lägg till lapp</button>
           <p class="err" id="newTodo-err"></p>
           <div id="todoList" class="todo-board"></div>
         </div>
@@ -300,10 +302,10 @@
       <div id="adm-sub-schedule" class="adm-subview">
         <div class="card adm-section" id="scheduleWrap">
           <div class="adm-topbar no-print" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">Schema</h3>
+            <h3 class="sectionTitle" style="margin:0;">🕐 Schema</h3>
             <div style="margin-left:auto;display:flex;gap:10px;">
-              <button class="rowbtn" id="printScheduleBtn">Skriv ut</button>
-              <button class="rowbtn" id="importScheduleBtn">Importera exempel-schema</button>
+              <button class="rowbtn" id="printScheduleBtn">🖨️ Skriv ut</button>
+              <button class="rowbtn" id="importScheduleBtn">📥 Importera exempel-schema</button>
             </div>
           </div>
           <h3 class="printTitle">Schema</h3>
@@ -343,7 +345,7 @@
               <label>Grupp/anteckning <span class="optional">(valfritt)</span></label>
               <input type="text" id="schedNote" placeholder="t.ex. Åk 4-6">
             </div>
-            <button class="btn small" id="addSchedBtn">Lägg till pass</button>
+            <button class="btn small" id="addSchedBtn">➕ Lägg till pass</button>
           </div>
           <p class="err no-print" id="newSched-err"></p>
 
