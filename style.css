@@ -676,7 +676,13 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
   margin-bottom:20px;
   border-bottom:1.5px solid var(--line);
   padding-bottom:0;
+  position:sticky;
+  top:0;
+  background:var(--page);
+  z-index:20;
+  padding-top:10px;
 }
+.subtab-icon{font-size:14px;margin-right:2px;}
 .subtabbtn{
   background:none;
   border:none;
@@ -1050,3 +1056,38 @@ div.field-error{
 }
 .edit-actions{display:flex;gap:8px;margin-top:12px;}
 .edit-actions .btn.small{margin:0;}
+
+/* ---------- Admin-översikt (snabbstatistik högst upp) ---------- */
+
+.admin-overview{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));
+  gap:10px;
+  margin-bottom:24px;
+}
+.overview-box{
+  background:var(--card);
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  text-align:center;
+  cursor:pointer;
+  transition:border-color .15s ease, transform .1s ease;
+}
+.overview-box:hover{border-color:var(--blue);transform:translateY(-1px);}
+.overview-box .num{
+  font-family:'Baloo 2',sans-serif;
+  font-size:26px;
+  font-weight:700;
+  color:var(--navy);
+  display:block;
+  line-height:1.1;
+}
+.overview-box .lbl{font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
+.overview-box.overview-warn .num{color:#B96A0B;}
+.overview-box.overview-warn{border-color:#F4A93B;background:#FFF8EE;}
+
+/* ---------- Accentfärger: väntande vs reserv ---------- */
+
+.accent-pending{border-left:5px solid var(--blue);}
+.accent-reserve{border-left:5px solid var(--accent);}
