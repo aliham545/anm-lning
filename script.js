@@ -1021,10 +1021,44 @@ async function deleteRegistrationEntirely(regId){
 
 /* ---------- Aktivitetslistor i admin ---------- */
 
+function renderAdminOverview(){
+  const wrap = document.getElementById("adminOverview");
+  const pendingCount = regs(currentBranch).filter(r => placedIds(r).length === 0 && reserveIds(r).length === 0).length;
+  const reserveCount = regs(currentBranch).reduce((n, r) => n + reserveIds(r).length, 0);
+  const placedCount = regs(currentBranch).filter(r => placedIds(r).length > 0).length;
+  const activityCount = acts(currentBranch).length;
+  const fritidsCount = fritidsListFor(currentBranch).length;
+
+  const boxes = [
+    { label: "Väntande", num: pendingCount, subtab: "activities", warn: pendingCount > 0 },
+    { label: "I reserv", num: reserveCount, subtab: "activities", warn: reserveCount > 0 },
+    { label: "Placerade", num: placedCount, subtab: "participants", warn: false },
+    { label: "Aktiviteter", num: activityCount, subtab: "activities", warn: false },
+    { label: "På fritids", num: fritidsCount, subtab: "participants", warn: false }
+  ];
+
+  wrap.innerHTML = boxes.map(b => `
+    <div class="overview-box${b.warn ? ' overview-warn' : ''}" data-jump-subtab="${b.subtab}">
+      <span class="num">${b.num}</span>
+      <span class="lbl">${escapeHtml(b.label)}</span>
+    </div>`).join("");
+
+  wrap.querySelectorAll("[data-jump-subtab]").forEach(box => {
+    box.addEventListener("click", () => {
+      const target = box.dataset.jumpSubtab;
+      document.querySelectorAll(".subtabbtn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".adm-subview").forEach(v => v.classList.remove("active"));
+      document.querySelector(`.subtabbtn[data-subtab="${target}"]`).classList.add("active");
+      document.getElementById("adm-sub-" + target).classList.add("active");
+    });
+  });
+}
+
 function renderAdmin(){
   updateHeaderForAdminBranch();
   renderNewActSchoolsOptions();
   reconcileCounts(currentBranch);
+  renderAdminOverview();
   renderPending();
   renderReserveList();
   const wrap = document.getElementById("adminActivities");
