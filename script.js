@@ -842,6 +842,12 @@ document.getElementById("addActBtn").addEventListener("click", async () => {
 
 /* ---------- Väntande ansökningar ---------- */
 
+let pendingFilter = "";
+document.getElementById("pendingSearch").addEventListener("input", (e) => {
+  pendingFilter = e.target.value.trim().toLowerCase();
+  renderPending();
+});
+
 function renderPending(){
   const wrap = document.getElementById("pendingApps");
   const pending = regs(currentBranch)
@@ -851,12 +857,20 @@ function renderPending(){
   const countEl = document.getElementById("pendingCount");
   if(countEl) countEl.textContent = pending.length ? `(${pending.length} st)` : "";
 
+  const filtered = pendingFilter
+    ? pending.filter(r => (r.childName || "").toLowerCase().includes(pendingFilter) || (r.klass || "").toLowerCase().includes(pendingFilter))
+    : pending;
+
   if(!pending.length){
     wrap.innerHTML = '<p class="empty">Inga väntande ansökningar just nu.</p>';
     return;
   }
+  if(!filtered.length){
+    wrap.innerHTML = '<p class="empty">Ingen matchning.</p>';
+    return;
+  }
 
-  wrap.innerHTML = pending.map(r => {
+  wrap.innerHTML = filtered.map(r => {
     const stadium = stadiumForGrade(r.grade);
     const options = (stadium ? activitiesForStadium(currentBranch, stadium) : []).filter(a => activityMatchesSchool(a, r.school));
     const familyEligible = stadium === "f" || stadium === "lag";
@@ -935,6 +949,12 @@ function renderPending(){
 
 /* ---------- Reservlista ---------- */
 
+let reserveFilter = "";
+document.getElementById("reserveSearch").addEventListener("input", (e) => {
+  reserveFilter = e.target.value.trim().toLowerCase();
+  renderReserveList();
+});
+
 function renderReserveList(){
   const wrap = document.getElementById("reserveApps");
   const countEl = document.getElementById("reserveCount");
@@ -942,9 +962,12 @@ function renderReserveList(){
   let totalWaiting = 0;
 
   const groupsHtml = branchActs.map(act => {
-    const waiting = regs(currentBranch).filter(r => reserveIds(r).includes(act.id)).sort((a,b) => a.ts - b.ts);
+    const allWaiting = regs(currentBranch).filter(r => reserveIds(r).includes(act.id)).sort((a,b) => a.ts - b.ts);
+    totalWaiting += allWaiting.length;
+    const waiting = reserveFilter
+      ? allWaiting.filter(r => (r.childName || "").toLowerCase().includes(reserveFilter) || (r.klass || "").toLowerCase().includes(reserveFilter))
+      : allWaiting;
     if(!waiting.length) return "";
-    totalWaiting += waiting.length;
     const rows = waiting.map(r => `
       <tr data-reg="${r.id}" data-act="${act.id}">
         <td data-label="Barn">${escapeHtml(r.childName)}</td>
@@ -962,7 +985,7 @@ function renderReserveList(){
         <div class="adm-act-head">
           <div>
             <span class="name">${escapeHtml(act.name)}</span>
-            <span class="count"> · ${realPlacedCountFor(currentBranch, act.id)}${act.maxSpots ? ' / ' + act.maxSpots : ''} placerade · ${waiting.length} i reserv</span>
+            <span class="count"> · ${realPlacedCountFor(currentBranch, act.id)}${act.maxSpots ? ' / ' + act.maxSpots : ''} placerade · ${allWaiting.length} i reserv</span>
           </div>
           ${full ? '<span class="badge full">Fortfarande fullt</span>' : '<span class="badge ok">Ledig plats!</span>'}
         </div>
@@ -976,7 +999,13 @@ function renderReserveList(){
   }).join("");
 
   if(countEl) countEl.textContent = totalWaiting ? `(${totalWaiting} st)` : "";
-  wrap.innerHTML = totalWaiting ? groupsHtml : '<p class="empty">Ingen står i reserv just nu.</p>';
+  if(!totalWaiting){
+    wrap.innerHTML = '<p class="empty">Ingen står i reserv just nu.</p>';
+  }else if(!groupsHtml.trim()){
+    wrap.innerHTML = '<p class="empty">Ingen matchning.</p>';
+  }else{
+    wrap.innerHTML = groupsHtml;
+  }
 
   wrap.querySelectorAll(".reserve-place-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -1508,19 +1537,34 @@ function fritidslistaTableHtml(list){
     </div>`;
 }
 
+let fritidsFilter = "";
+document.getElementById("fritidsSearch").addEventListener("input", (e) => {
+  fritidsFilter = e.target.value.trim().toLowerCase();
+  renderFritidslista();
+});
+
 function renderFritidslista(){
   const wrap = document.getElementById("fritidslista");
   const list = fritidsListFor(currentBranch);
+
+  document.getElementById("fritidsPrintArea").innerHTML = list.length ? `
+    <h3 class="printTitle">Fritidslista · ${escapeHtml(branchInfo(currentBranch).name)} · ${new Date().toLocaleDateString('sv-SE')}</h3>
+    ${fritidslistaTableHtml(list)}` : "";
+
   if(!list.length){
     wrap.innerHTML = '<p class="empty">Inga barn markerade som "Går på fritids" än.</p>';
-    document.getElementById("fritidsPrintArea").innerHTML = "";
     return;
   }
-  wrap.innerHTML = `<p class="muted" style="margin-bottom:12px;">${list.length} st går på fritids.</p>` + fritidslistaTableHtml(list);
 
-  document.getElementById("fritidsPrintArea").innerHTML = `
-    <h3 class="printTitle">Fritidslista · ${escapeHtml(branchInfo(currentBranch).name)} · ${new Date().toLocaleDateString('sv-SE')}</h3>
-    ${fritidslistaTableHtml(list)}`;
+  const filtered = fritidsFilter
+    ? list.filter(r => (r.childName || "").toLowerCase().includes(fritidsFilter) || (r.klass || "").toLowerCase().includes(fritidsFilter))
+    : list;
+
+  if(!filtered.length){
+    wrap.innerHTML = '<p class="empty">Ingen matchning.</p>';
+    return;
+  }
+  wrap.innerHTML = `<p class="muted" style="margin-bottom:12px;">${filtered.length} av ${list.length} st går på fritids.</p>` + fritidslistaTableHtml(filtered);
 }
 
 document.getElementById("printFritidsBtn").addEventListener("click", () => {
