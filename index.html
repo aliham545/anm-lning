@@ -192,12 +192,14 @@
         <div class="card adm-section accent-pending" id="pendingWrap">
           <h3 class="sectionTitle">🔵 Väntande ansökningar <span class="muted" id="pendingCount"></span></h3>
           <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet — är den full hamnar de automatiskt i reservlistan istället.</p>
+          <input type="text" id="pendingSearch" placeholder="Sök på namn eller klass...">
           <div id="pendingApps"></div>
         </div>
 
         <div class="card adm-section accent-reserve" id="reserveWrap">
           <h3 class="sectionTitle">🟠 Reservlista <span class="muted" id="reserveCount"></span></h3>
           <p class="sub">Barn som sökt till en aktivitet som var full. Placera dem så fort det finns plats.</p>
+          <input type="text" id="reserveSearch" placeholder="Sök på namn eller klass...">
           <div id="reserveApps"></div>
         </div>
 
@@ -243,6 +245,7 @@
             </div>
           </div>
           <p class="sub">Bara de barn som är markerade "Går på fritids" — för utskrift eller export till ett Word-dokument.</p>
+          <input type="text" id="fritidsSearch" placeholder="Sök på namn eller klass...">
           <div id="fritidslista"></div>
         </div>
         <div id="fritidsPrintArea" class="print-only"></div>
