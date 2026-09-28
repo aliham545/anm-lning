@@ -1,4 +1,5 @@
 import { db, auth } from "./firebase.js";
+import { buildXlsx, XLSX_MIME } from "./xlsx-writer.js";
 import {
   collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot,
   query, where, getDocs, increment
@@ -78,10 +79,21 @@ function gradeSortValue(grade){
   return isNaN(g) ? 99 : g;
 }
 
+// Gör text säker att sätta in i HTML – både som innehåll och inuti attribut
+// (value="…", data-…="…"). Allt som skrivs av föräldrar måste gå igenom denna.
 function escapeHtml(s){
-  const d = document.createElement("div");
-  d.textContent = s == null ? "" : s;
-  return d.innerHTML;
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Antal (t.ex. familjens barn/vuxna) visas alltid som ett heltal – aldrig som fri text.
+function intText(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? String(Math.max(0, Math.trunc(n))) : "0";
 }
 
 function phoneLink(phone){
@@ -94,6 +106,20 @@ function goesHomeLabel(v){
   if(v === true) return "Ja";
   if(v === false) return "Nej";
   return "–";
+}
+// Kompakt märke för hemgång i aktivitetens deltagarlista. "Ska hämtas" är
+// säkerhetsinfo och får därför en tydlig varningsfärg.
+// Tydligt Ja/Nej för fritids i aktiviteternas deltagarlistor.
+function fritidsBadgeHtml(v){
+  return v
+    ? '<span class="home-badge fritids-yes" title="Går på fritids">Ja</span>'
+    : '<span class="home-badge fritids-no" title="Går inte på fritids">Nej</span>';
+}
+
+function homeBadgeHtml(v){
+  if(v === true) return '<span class="home-badge home-ok" title="Får gå hem själv">Går själv</span>';
+  if(v === false) return '<span class="home-badge home-warn" title="Ska hämtas av vårdnadshavare">Ska hämtas</span>';
+  return '<span class="home-badge home-unknown" title="Uppgift saknas">Okänt</span>';
 }
 function moveOptionsHtml(branchId, excludeActId){
   return acts(branchId)
@@ -239,12 +265,6 @@ function rerenderAll(){
 function acts(branchId){ return activitiesByBranch[branchId] || []; }
 function regs(branchId){ return registrationsByBranch[branchId] || []; }
 
-// Publikt/visningsantal - bygger på det synkade räknefältet på aktiviteten
-// (registreringar är inte publikt läsbara, se Firestore-reglerna).
-function displayCount(branchId, actId){
-  const a = acts(branchId).find(a => a.id === actId);
-  return a && a.placedCount ? a.placedCount : 0;
-}
 // Faktiskt antal utifrån riktiga anmälningar - bara tillgängligt när man är
 // inloggad (admin), används för avstämning och deltagarlistor.
 function realPlacedCountFor(branchId, actId){
@@ -499,16 +519,15 @@ function renderActivityChecks(){
     heading.className = "achk-section-heading";
     heading.textContent = sec.label;
     wrap.appendChild(heading);
+    // Föräldrar ser aldrig platsantal eller om en aktivitet är full – de kan alltid
+    // söka. Är den full hamnar barnet i reservlistan när personalen placerar.
     sec.options.forEach(a => {
-      const count = displayCount(signupBranch, a.id);
-      const full = a.maxSpots && count >= a.maxSpots;
       const isFamilyActivity = actStadiums(a).includes("familj");
       const label = document.createElement("label");
-      label.className = "activity-check" + (full ? " disabled" : "");
+      label.className = "activity-check";
       label.innerHTML = `
-        <input type="checkbox" value="${a.id}" ${isFamilyActivity ? 'data-family="1"' : ''} ${full ? "disabled" : ""}>
-        <span>${activityLabelHtml(a)}</span>
-        <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>`;
+        <input type="checkbox" value="${a.id}" ${isFamilyActivity ? 'data-family="1"' : ''}>
+        <span>${activityLabelHtml(a)}</span>`;
       wrap.appendChild(label);
     });
   });
@@ -542,14 +561,11 @@ function buildStadiumSections(branchId, school){
     const list = document.createElement("div");
     list.className = "act-list";
     stActs.forEach(a => {
-      const count = displayCount(branchId, a.id);
-      const full = a.maxSpots && count >= a.maxSpots;
       const div = document.createElement("div");
       div.className = "act-card";
       div.innerHTML = `
         <div class="top">
           <span class="name">${activityLabelHtml(a)}</span>
-          <span class="badge ${full ? 'full' : 'ok'}">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : (count + ' platser tagna')}</span>
         </div>`;
       list.appendChild(div);
     });
@@ -608,7 +624,7 @@ function showTicket(branchName, data, wishNames){
       <div class="row"><span>Klass</span><b>${escapeHtml(data.klass)}</b></div>
       <div class="row"><span>Går hem själv</span><b>${data.goesHomeAlone ? "Ja" : "Nej, ska hämtas"}</b></div>
       <div class="row"><span>Önskade aktiviteter</span><b>${escapeHtml(wishNames.join(', '))}</b></div>
-      ${typeof data.familyChildren !== "undefined" ? `<div class="row"><span>Familj: barn / vuxna</span><b>${data.familyChildren} / ${data.familyAdults}</b></div>` : ''}
+      ${typeof data.familyChildren !== "undefined" ? `<div class="row"><span>Familj: barn / vuxna</span><b>${intText(data.familyChildren)} / ${intText(data.familyAdults)}</b></div>` : ''}
       <div class="row"><span>Förälder</span><b>${escapeHtml(data.parentName)}</b></div>
       <div class="row"><span>Datum</span><b>${dateStr}</b></div>
       <p class="ticket-note">Personalen placerar barnet i aktivitet(er) inom kort.</p>
@@ -637,8 +653,11 @@ document.getElementById("signupForm").addEventListener("input", (e) => {
   if(wrap) wrap.classList.remove("field-error");
 });
 
+let signupInFlight = false;
+
 document.getElementById("signupForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if(signupInFlight) return;   // en andra tryckning medan första skickas ignoreras
   const err = document.getElementById("s-err");
   err.style.display = "none";
   clearFieldErrors();
@@ -695,6 +714,14 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
   }
   const wishNames = wishActivityIds.map(id => activityName(signupBranch, id));
 
+  // Lås knappen medan ansökan skickas – annars kan ett dubbeltryck på en långsam
+  // anslutning skapa två ansökningar.
+  const submitBtn = document.querySelector('#signupForm button[type="submit"]');
+  const submitLabel = submitBtn.textContent;
+  signupInFlight = true;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Skickar…";
+  const slowHint = setTimeout(() => { submitBtn.textContent = "Väntar på anslutning…"; }, 10000);
   try{
     await addDoc(registrationsCol, {
       branch: signupBranch,
@@ -708,6 +735,11 @@ document.getElementById("signupForm").addEventListener("submit", async (e) => {
     err.style.display = "block";
     console.error(e);
     return;
+  }finally{
+    clearTimeout(slowHint);
+    signupInFlight = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = submitLabel;
   }
   showTicket(branchInfo(signupBranch).name, data, wishNames);
   document.getElementById("signupForm").reset();
@@ -886,13 +918,13 @@ function renderPending(){
             <label class="activity-check">
               <input type="checkbox" value="${a.id}" ${wishSet.has(a.id) ? "checked" : ""}>
               <span>${activityLabelHtml(a)}</span>
-              <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt' : (count + '/' + a.maxSpots)) : ''}</span>
+              <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt – hamnar i reserv' : (count + '/' + a.maxSpots)) : ''}</span>
             </label>`;
         }).join("")
       : '<p class="muted">Inga aktiviteter i den här årskursgruppen än.</p>';
 
     return `
-      <div class="pending-card" data-reg="${r.id}">
+      <div class="pending-card" data-reg="${escapeHtml(r.id)}">
         <div class="pending-head">
           <span class="pname">${escapeHtml(r.childName)}</span>
           <span class="badge ok">Åk ${escapeHtml(r.grade)} · ${escapeHtml(r.klass)}</span>
@@ -902,13 +934,13 @@ function renderPending(){
           <div>Barnets telefon: <b>${r.childPhone ? phoneLink(r.childPhone) : '–'}</b></div>
           <div>Förälder: <b>${escapeHtml(r.parentName)}</b> &nbsp;·&nbsp; Telefon: <b>${phoneLink(r.parentPhone)}</b></div>
           <div>Önskemål: <b>${escapeHtml(wishIds(r).map(id => activityName(currentBranch, id)).join(', ') || '–')}</b></div>
-          ${typeof r.familyChildren !== "undefined" ? `<div>Familj: <b>${r.familyChildren} barn / ${r.familyAdults} vuxna</b></div>` : ''}
+          ${typeof r.familyChildren !== "undefined" ? `<div>Familj: <b>${intText(r.familyChildren)} barn / ${intText(r.familyAdults)} vuxna</b></div>` : ''}
           ${r.otherInfo ? `<div>Övrig info: <b>${escapeHtml(r.otherInfo)}</b></div>` : ''}
         </div>
         <label class="muted" style="font-size:12px;">Placera i:</label>
         <div class="activity-checks pending-place-checks">${checksHtml}</div>
         <div class="pending-actions">
-          <button class="rowbtn" data-remove-pending="${r.id}">Ta bort ansökan</button>
+          <button class="rowbtn" data-remove-pending="${escapeHtml(r.id)}">Ta bort ansökan</button>
           <button class="btn small place-btn">Placera</button>
         </div>
       </div>`;
@@ -969,9 +1001,10 @@ function renderReserveList(){
       : allWaiting;
     if(!waiting.length) return "";
     const rows = waiting.map(r => `
-      <tr data-reg="${r.id}" data-act="${act.id}">
+      <tr data-reg="${escapeHtml(r.id)}" data-act="${act.id}">
         <td data-label="Barn">${escapeHtml(r.childName)}</td>
         <td data-label="Åk/Klass">${escapeHtml(r.grade)} / ${escapeHtml(r.klass)}</td>
+        <td data-label="Fritids">${fritidsBadgeHtml(r.attendsFritids)}</td>
         <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
         <td data-label="Telefon">${phoneLink(r.parentPhone)}</td>
         <td data-label="" class="no-print stack-actions">
@@ -991,7 +1024,7 @@ function renderReserveList(){
         </div>
         <div class="table-scroll">
         <table class="responsive-stack">
-          <thead><tr><th>Barn</th><th>Åk/Klass</th><th>Förälder</th><th>Telefon</th><th class="no-print"></th></tr></thead>
+          <thead><tr><th>Barn</th><th>Åk/Klass</th><th>Fritids</th><th>Förälder</th><th>Telefon</th><th class="no-print"></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
         </div>
@@ -1111,26 +1144,46 @@ function renderAdmin(){
       box.className = "adm-act";
       const rowsHtml = regsHere.length
         ? regsHere.map(r => `
-            <tr data-reg="${r.id}">
-              <td data-label="Barn">${escapeHtml(r.childName)}</td>
-              <td data-label="Klass">${escapeHtml(r.klass)}</td>
-              <td data-label="Fritids">${r.attendsFritids ? "Ja" : "Nej"}</td>
-              <td data-label="Förälder">${escapeHtml(r.parentName)}</td>
-              <td data-label="Förälders telefon">${phoneLink(r.parentPhone)}</td>
-              <td data-label="Kontaktad"><label class="contact-check"><input type="checkbox" class="contacted-toggle" ${r.parentContacted ? "checked" : ""}> Kontaktat förälder</label></td>
-              <td data-label="Flytta till">
-                <select class="move-act-select">
-                  <option value="">Välj aktivitet…</option>
-                  ${moveOptionsHtml(currentBranch, act.id)}
-                </select>
-                <button class="rowbtn small move-act-btn">Flytta</button>
+            <tr data-reg="${escapeHtml(r.id)}">
+              <td data-label="Barn">
+                <div class="roster-cell">
+                  <div class="roster-primary">${escapeHtml(r.childName)}</div>
+                  <div class="roster-sub">${escapeHtml(r.klass)}</div>
+                </div>
               </td>
-              <td data-label="" class="stack-actions">
-                <button class="rowbtn unplace-btn" title="Tar bara bort barnet från den här aktiviteten">Ta bort från aktivitet</button>
-                <button class="rowbtn" data-reg-remove="${r.id}" title="Tar bort hela anmälan">Ta bort deltagare</button>
+              <td data-label="Förälder">
+                <div class="roster-cell">
+                  <div class="roster-primary">${escapeHtml(r.parentName)}</div>
+                  <div class="roster-sub">${phoneLink(r.parentPhone)}</div>
+                </div>
+              </td>
+              <td data-label="Fritids">${fritidsBadgeHtml(r.attendsFritids)}</td>
+              <td data-label="Hemgång">${homeBadgeHtml(r.goesHomeAlone)}</td>
+              <td data-label="Kontaktad" class="roster-center">
+                <label class="icon-toggle" title="Kontaktat förälder">
+                  <input type="checkbox" class="contacted-toggle" ${r.parentContacted ? "checked" : ""}>
+                  <span class="icon-toggle-mark">☎</span>
+                  <span class="sr-only">Kontaktat förälder</span>
+                </label>
+              </td>
+              <td data-label="" class="row-menu-cell">
+                <button class="rowbtn row-menu-toggle">⋯ Mer</button>
+                <div class="row-menu-panel">
+                  <div class="row-menu-move">
+                    <select class="move-act-select">
+                      <option value="">Flytta till…</option>
+                      ${moveOptionsHtml(currentBranch, act.id)}
+                    </select>
+                    <button class="rowbtn small move-act-btn">Flytta</button>
+                  </div>
+                  <button class="rowbtn unplace-btn" title="Tar bara bort barnet från den här aktiviteten">Ta bort från aktivitet</button>
+                  <button class="rowbtn danger-text" data-reg-remove="${escapeHtml(r.id)}" title="Tar bort hela anmälan">Ta bort deltagare</button>
+                </div>
               </td>
             </tr>`).join("")
-        : `<tr><td colspan="8" class="empty">Ingen placerad här än.</td></tr>`;
+        : `<tr><td colspan="6" class="empty">Ingen placerad här än.</td></tr>`;
+
+      const pct = act.maxSpots ? Math.min(100, Math.round((regsHere.length / act.maxSpots) * 100)) : null;
 
       box.innerHTML = `
         <div class="adm-act-head">
@@ -1140,36 +1193,48 @@ function renderAdmin(){
           </div>
           <button class="del-x" data-act="${act.id}" title="Ta bort aktivitet" aria-label="Ta bort aktivitet">✕</button>
         </div>
-        <div class="act-schedule-row" data-act-schedule="${act.id}">
-          <span class="act-schedule-view">
-            <span class="act-schedule-text">${act.schedule ? escapeHtml(act.schedule) : '<span class="muted">Ingen tid inställd</span>'}</span>
-            <button class="ghostlink schedule-edit-btn">Ändra tid</button>
+        ${act.maxSpots ? `<div class="capacity-bar"><div class="capacity-fill${pct >= 100 ? ' full' : ''}" style="width:${pct}%;"></div></div>` : ''}
+        <div class="adm-act-meta">
+          <span class="meta-item" data-act-schedule="${act.id}">
+            <span class="meta-value schedule-text">🕐 ${act.schedule ? escapeHtml(act.schedule) : '<span class="muted">Ingen tid</span>'}</span>
+            <button class="meta-edit schedule-edit-btn">Ändra</button>
           </span>
-        </div>
-        <div class="act-school-row">
-          Skola: <b>${(act.schools && act.schools.length) ? escapeHtml(act.schools.join(', ')) : 'Alla skolor'}</b>
-        </div>
-        <div class="act-maxspots-row" data-act-maxspots="${act.id}">
-          <span class="act-maxspots-view">
-            <span class="act-maxspots-text">Max platser: <b>${act.maxSpots ? escapeHtml(String(act.maxSpots)) : 'Obegränsat'}</b></span>
-            <button class="ghostlink maxspots-edit-btn">Ändra platser</button>
+          <span class="meta-sep">·</span>
+          <span class="meta-item">
+            <span class="meta-value">🏫 ${(act.schools && act.schools.length) ? escapeHtml(act.schools.join(', ')) : 'Alla skolor'}</span>
+          </span>
+          <span class="meta-sep">·</span>
+          <span class="meta-item" data-act-maxspots="${act.id}">
+            <span class="meta-value maxspots-text">🎟️ ${act.maxSpots ? escapeHtml(String(act.maxSpots)) + ' platser' : 'Obegränsat'}</span>
+            <button class="meta-edit maxspots-edit-btn">Ändra</button>
           </span>
         </div>
         <div class="table-scroll">
         <table class="responsive-stack">
-          <thead><tr><th>Barn</th><th>Klass</th><th>Fritids</th><th>Förälder</th><th>Förälders telefon</th><th>Kontaktad</th><th>Flytta till</th><th></th></tr></thead>
+          <thead><tr><th>Barn</th><th>Förälder</th><th>Fritids</th><th>Hemgång</th><th>Kontaktad</th><th></th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
         </div>
-        <div class="inline-add">
-          <input type="text" placeholder="Barnets namn" class="add-name">
-          <input type="text" placeholder="Klass" class="add-class" style="max-width:90px;">
-          <input type="text" placeholder="Förälders namn" class="add-parent">
-          <input type="tel" placeholder="Förälders telefon (valfritt)" class="add-phone">
-          <button class="btn small add-reg-btn">Lägg till direkt</button>
+        <div class="adm-act-foot">
+          <button class="btn small add-participant-btn" type="button">➕ Lägg till deltagare</button>
         </div>
       `;
       wrap.appendChild(box);
+
+      box.querySelector(".add-participant-btn").addEventListener("click", () => {
+        openAddParticipant(act.id);
+      });
+
+      box.querySelectorAll(".row-menu-toggle").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const panel = btn.nextElementSibling;
+          const wasOpen = panel.classList.contains("open");
+          document.querySelectorAll(".row-menu-panel").forEach(p => p.classList.remove("open"));
+          if(wasOpen) return;
+          panel.classList.add("open");
+          positionRowMenu(btn, panel);
+        });
+      });
 
       const scheduleRow = box.querySelector(`[data-act-schedule="${act.id}"]`);
       scheduleRow.querySelector(".schedule-edit-btn").addEventListener("click", () => {
@@ -1271,30 +1336,6 @@ function renderAdmin(){
           await updateDoc(doc(db, "activities", targetId), { placedCount: increment(1) }).catch(() => {});
         });
       });
-
-      box.querySelector(".add-reg-btn").addEventListener("click", async () => {
-        const nameInp = box.querySelector(".add-name");
-        const classInp = box.querySelector(".add-class");
-        const parentInp = box.querySelector(".add-parent");
-        const phoneInp = box.querySelector(".add-phone");
-        const childName = nameInp.value.trim();
-        const klass = classInp.value.trim();
-        const parentName = parentInp.value.trim();
-        const parentPhone = phoneInp.value.trim();
-        if(!childName || !klass) return;
-        const grade = st.id === "f" ? "F" : st.id === "lag" ? "1" : st.id === "mellan" ? "4" : st.id === "hog" ? "7" : "";
-        await addDoc(registrationsCol, {
-          branch: currentBranch, childName, klass, grade,
-          gender: "", school: "", attendsFritids: false, goesHomeAlone: null, childPhone: "", otherInfo: "",
-          parentName, parentPhone,
-          wishActivityIds: [act.id], placedActivityIds: [act.id], ts: Date.now()
-        });
-        await updateDoc(doc(db, "activities", act.id), { placedCount: increment(1) }).catch(() => {});
-        nameInp.value = "";
-        classInp.value = "";
-        parentInp.value = "";
-        phoneInp.value = "";
-      });
     });
   });
 
@@ -1310,6 +1351,268 @@ document.getElementById("contactSearch").addEventListener("input", (e) => {
   contactFilter = e.target.value.trim().toLowerCase();
   renderDeltagarlista();
 });
+
+/* ---------- Lägg till deltagare (dialog, admin) ---------- */
+// Samma uppgifter som föräldrarna fyller i vid anmälan, plus val av vilka
+// aktiviteter barnet ska placeras i. Öppnas från deltagarlistan eller från
+// ett aktivitetskort (då är den aktiviteten förvald).
+
+let npForcedActId = null;    // aktivitet som alltid ska synas i listan (öppnad från aktivitetskort)
+let npInitialCheckId = null; // aktivitet som ska vara förkryssad första gången
+
+function npEl(id){ return document.getElementById(id); }
+
+function showToast(message){
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = message;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("show"));
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, 2600);
+}
+
+function npClearErrors(){
+  ["np-name","np-school","np-grade","np-class","np-parentname","np-parentphone"].forEach(id => npEl(id).classList.remove("field-error"));
+  ["np-gender","np-gohome","np-activities","np-family-fields"].forEach(id => npEl(id).classList.remove("field-error"));
+  npEl("newParticipant-err").style.display = "none";
+}
+
+function npResetForm(keepContext){
+  ["np-name","np-class","np-childphone","np-parentname","np-parentphone","np-other","np-family-children","np-family-adults"].forEach(id => npEl(id).value = "");
+  npEl("np-fritids").checked = false;
+  document.querySelectorAll('input[name="npgender"], input[name="npgohome"]').forEach(r => r.checked = false);
+  if(!keepContext){
+    npEl("np-grade").value = "";
+    npEl("np-activities").innerHTML = "";
+  }
+  npClearErrors();
+}
+
+function openAddParticipant(preActId){
+  npResetForm(false);
+  const schools = SCHOOLS_BY_BRANCH[currentBranch] || [];
+  const preAct = preActId ? acts(currentBranch).find(a => a.id === preActId) : null;
+
+  const schoolSel = npEl("np-school");
+  schoolSel.innerHTML = '<option value="">Välj skola</option>' +
+    schools.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+  if(schools.length === 1){
+    schoolSel.value = schools[0];
+  }else if(preAct && preAct.schools && preAct.schools.length === 1){
+    schoolSel.value = preAct.schools[0];
+  }
+
+  npForcedActId = preAct ? preAct.id : null;
+  npInitialCheckId = preAct ? preAct.id : null;
+  npEl("npSub").textContent = preAct
+    ? `Läggs till i ${preAct.name}. Samma uppgifter som föräldrarna fyller i.`
+    : "Samma uppgifter som föräldrarna fyller i vid anmälan.";
+
+  renderNewParticipantActivities();
+  npUpdateFamilyFields();
+  npEl("npModal").classList.add("open");
+  document.body.classList.add("modal-open");
+  setTimeout(() => npEl("np-name").focus(), 40);
+}
+
+function closeAddParticipant(){
+  npEl("npModal").classList.remove("open");
+  document.body.classList.remove("modal-open");
+  npForcedActId = null;
+  npInitialCheckId = null;
+}
+
+function renderNewParticipantActivities(){
+  const wrap = npEl("np-activities");
+  const school = npEl("np-school").value;
+  const grade = npEl("np-grade").value;
+  const stadium = stadiumForGrade(grade);
+
+  const checked = new Set(Array.from(wrap.querySelectorAll('input[type="checkbox"]:checked')).map(c => c.value));
+  if(npInitialCheckId){ checked.add(npInitialCheckId); npInitialCheckId = null; }
+
+  const seen = new Set();
+  const sections = [];
+  function addSection(label, list){
+    const opts = list.filter(a => !seen.has(a.id));
+    opts.forEach(a => seen.add(a.id));
+    if(opts.length) sections.push({ label, options: opts });
+  }
+  const forSchool = list => list.filter(a => activityMatchesSchool(a, school));
+
+  if(stadium){
+    addSection(STADIUMS.find(s => s.id === stadium).label, forSchool(activitiesForStadium(currentBranch, stadium)));
+  }
+  addSection("Utflykter", forSchool(activitiesForStadium(currentBranch, "utflykt")));
+  if(stadium === "f" || stadium === "lag"){
+    addSection("Familjeaktivitet", forSchool(activitiesForStadium(currentBranch, "familj")));
+  }
+  if(npForcedActId && !seen.has(npForcedActId)){
+    const a = acts(currentBranch).find(x => x.id === npForcedActId);
+    if(a) addSection("Vald aktivitet", [a]);
+  }
+
+  wrap.innerHTML = "";
+  sections.forEach(sec => {
+    const heading = document.createElement("div");
+    heading.className = "achk-section-heading";
+    heading.textContent = sec.label;
+    wrap.appendChild(heading);
+    sec.options.forEach(a => {
+      const count = realPlacedCountFor(currentBranch, a.id);
+      const full = a.maxSpots && count >= a.maxSpots;
+      const label = document.createElement("label");
+      label.className = "activity-check";
+      label.innerHTML = `
+        <input type="checkbox" value="${a.id}" ${actStadiums(a).includes("familj") ? 'data-family="1"' : ''} ${checked.has(a.id) ? "checked" : ""}>
+        <span>${activityLabelHtml(a)}</span>
+        <span class="achk-badge">${a.maxSpots ? (full ? 'Fullt – hamnar i reserv' : (count + '/' + a.maxSpots)) : ''}</span>`;
+      wrap.appendChild(label);
+    });
+  });
+
+  if(!sections.length){
+    wrap.innerHTML = '<p class="muted">Välj skola och årskurs för att se aktiviteter.</p>';
+  }else if(!stadium){
+    const hint = document.createElement("p");
+    hint.className = "muted";
+    hint.style.marginTop = "6px";
+    hint.textContent = "Välj årskurs för att se fler aktiviteter.";
+    wrap.appendChild(hint);
+  }
+}
+
+function npUpdateFamilyFields(){
+  const anyFamily = document.querySelectorAll('#np-activities input[data-family="1"]:checked').length > 0;
+  const box = npEl("np-family-fields");
+  box.classList.toggle("show", anyFamily);
+  if(!anyFamily){
+    npEl("np-family-children").value = "";
+    npEl("np-family-adults").value = "";
+    box.classList.remove("field-error");
+  }
+}
+
+npEl("newParticipantToggleBtn").addEventListener("click", () => openAddParticipant(null));
+npEl("np-close-btn").addEventListener("click", closeAddParticipant);
+npEl("np-cancel-btn").addEventListener("click", closeAddParticipant);
+npEl("npModal").addEventListener("click", (e) => {
+  if(e.target === npEl("npModal")) closeAddParticipant();
+});
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape" && npEl("npModal").classList.contains("open")) closeAddParticipant();
+});
+npEl("np-school").addEventListener("change", () => { renderNewParticipantActivities(); npUpdateFamilyFields(); });
+npEl("np-grade").addEventListener("change", () => { renderNewParticipantActivities(); npUpdateFamilyFields(); });
+npEl("np-activities").addEventListener("change", () => {
+  npUpdateFamilyFields();
+  npEl("np-activities").classList.remove("field-error");
+});
+npEl("npModal").addEventListener("input", (e) => {
+  e.target.classList.remove("field-error");
+  const wrap = e.target.closest(".pf-radio-row, .pf-family-fields");
+  if(wrap) wrap.classList.remove("field-error");
+});
+
+async function saveNewParticipant(addAnother){
+  const err = npEl("newParticipant-err");
+  npClearErrors();
+
+  const childName = npEl("np-name").value.trim();
+  const genderInput = document.querySelector('input[name="npgender"]:checked');
+  const gender = genderInput ? genderInput.value : "";
+  const school = npEl("np-school").value;
+  const grade = npEl("np-grade").value;
+  const klass = npEl("np-class").value.trim();
+  const gohomeInput = document.querySelector('input[name="npgohome"]:checked');
+  const goesHomeAlone = gohomeInput ? gohomeInput.value === "ja" : null;
+  const attendsFritids = npEl("np-fritids").checked;
+  const childPhone = npEl("np-childphone").value.trim();
+  const parentName = npEl("np-parentname").value.trim();
+  const parentPhone = npEl("np-parentphone").value.trim();
+  const otherInfo = npEl("np-other").value.trim();
+  const activityIds = Array.from(new Set(
+    Array.from(document.querySelectorAll('#np-activities input[type="checkbox"]:checked')).map(c => c.value)
+  ));
+  const isFamily = document.querySelectorAll('#np-activities input[data-family="1"]:checked').length > 0;
+
+  let firstInvalid = null;
+  function invalid(id){
+    const el = npEl(id);
+    el.classList.add("field-error");
+    if(!firstInvalid) firstInvalid = el;
+  }
+  if(!childName) invalid("np-name");
+  if(!gender) invalid("np-gender");
+  if(!school) invalid("np-school");
+  if(!grade) invalid("np-grade");
+  if(!klass) invalid("np-class");
+  if(goesHomeAlone === null) invalid("np-gohome");
+  if(!parentName) invalid("np-parentname");
+  if(!parentPhone) invalid("np-parentphone");
+  if(isFamily && (npEl("np-family-children").value === "" || npEl("np-family-adults").value === "")) invalid("np-family-fields");
+
+  if(firstInvalid){
+    err.textContent = "Fyll i de markerade fälten innan du sparar.";
+    err.style.display = "block";
+    firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  // Full aktivitet → reservlistan (samma regler som när man placerar en väntande ansökan).
+  const toPlace = [];
+  const toReserve = [];
+  activityIds.forEach(id => {
+    const act = acts(currentBranch).find(a => a.id === id);
+    const full = act && act.maxSpots && realPlacedCountFor(currentBranch, id) >= act.maxSpots;
+    if(full) toReserve.push(id); else toPlace.push(id);
+  });
+
+  const data = {
+    branch: currentBranch, childName, gender, school, grade, klass,
+    attendsFritids, goesHomeAlone, childPhone, parentName, parentPhone, otherInfo,
+    wishActivityIds: activityIds, placedActivityIds: toPlace, reserveActivityIds: toReserve,
+    parentContacted: false, ts: Date.now()
+  };
+  if(isFamily){
+    data.familyChildren = parseInt(npEl("np-family-children").value, 10) || 0;
+    data.familyAdults = parseInt(npEl("np-family-adults").value, 10) || 0;
+  }
+
+  const buttons = [npEl("np-save-btn"), npEl("np-save-more-btn")];
+  buttons.forEach(b => b.disabled = true);
+  try{
+    await addDoc(registrationsCol, data);
+    await Promise.all(toPlace.map(id => updateDoc(doc(db, "activities", id), { placedCount: increment(1) }).catch(() => {})));
+  }catch(e){
+    err.textContent = "Kunde inte spara, kolla internetanslutningen och försök igen.";
+    err.style.display = "block";
+    console.error(e);
+    buttons.forEach(b => b.disabled = false);
+    return;
+  }
+  buttons.forEach(b => b.disabled = false);
+
+  const reserveNames = toReserve.map(id => activityName(currentBranch, id)).join(", ");
+  if(addAnother){
+    npResetForm(true);
+    renderNewParticipantActivities();
+    npUpdateFamilyFields();
+    npEl("np-name").focus();
+  }else{
+    closeAddParticipant();
+  }
+  showToast(`✓ ${childName} tillagd${activityIds.length ? "" : " (väntar på placering)"}`);
+  if(toReserve.length){
+    alert('Fullt just nu för: ' + reserveNames + '. ' + childName + ' hamnade i reservlistan för den aktiviteten.');
+  }
+}
+
+npEl("np-save-btn").addEventListener("click", () => saveNewParticipant(false));
+npEl("np-save-more-btn").addEventListener("click", () => saveNewParticipant(true));
 
 function renderDeltagarlista(){
   const wrap = document.getElementById("deltagarlista");
@@ -1349,7 +1652,7 @@ function renderDeltagarlista(){
       ? list.map(r => {
           const placedNames = placedIds(r).map(id => activityName(currentBranch, id));
           return `
-          <tr data-reg="${r.id}">
+          <tr data-reg="${escapeHtml(r.id)}">
             <td data-label="Barn">${escapeHtml(r.childName)}</td>
             <td data-label="Kön">${escapeHtml(r.gender || '–')}</td>
             <td data-label="Skola">${escapeHtml(r.school || '–')}</td>
@@ -1362,11 +1665,11 @@ function renderDeltagarlista(){
             <td data-label="Förälders tel">${phoneLink(r.parentPhone)}</td>
             <td data-label="Barnets tel">${r.childPhone ? phoneLink(r.childPhone) : '<span class="muted">–</span>'}</td>
             <td data-label="Aktivitet(er)">${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</td>
-            <td data-label="Familj: barn/vuxna">${typeof r.familyChildren !== "undefined" ? (r.familyChildren + ' / ' + r.familyAdults) : ''}</td>
+            <td data-label="Familj: barn/vuxna">${typeof r.familyChildren !== "undefined" ? (intText(r.familyChildren) + ' / ' + intText(r.familyAdults)) : ''}</td>
             <td data-label="Övrig info">${r.otherInfo ? escapeHtml(r.otherInfo) : ''}</td>
             <td data-label="" class="no-print stack-actions">
               <button class="rowbtn contact-edit-btn">Ändra</button>
-              <button class="rowbtn" data-contact-remove="${r.id}">Ta bort</button>
+              <button class="rowbtn" data-contact-remove="${escapeHtml(r.id)}">Ta bort</button>
             </td>
           </tr>`;
         }).join("")
@@ -1376,7 +1679,7 @@ function renderDeltagarlista(){
       ? list.map(r => {
           const placedNames = placedIds(r).map(id => activityName(currentBranch, id));
           return `
-          <div class="contact-card" data-reg="${r.id}">
+          <div class="contact-card" data-reg="${escapeHtml(r.id)}">
             <div class="contact-card-head">
               <span class="contact-card-name">${escapeHtml(r.childName)}</span>
               <span class="badge ok">Åk ${escapeHtml(r.grade)} · ${escapeHtml(r.klass)}</span>
@@ -1396,11 +1699,11 @@ function renderDeltagarlista(){
             </div>
             <label class="contact-check" style="margin-bottom:8px;"><input type="checkbox" class="contacted-toggle" ${r.parentContacted ? "checked" : ""}> Kontaktat förälder</label>
             <div class="contact-card-line"><b>Aktivitet(er):</b> ${placedNames.length ? escapeHtml(placedNames.join(', ')) : '<span class="muted">Väntar på placering</span>'}</div>
-            ${typeof r.familyChildren !== "undefined" ? `<div class="contact-card-line"><b>Familj:</b> ${r.familyChildren} barn / ${r.familyAdults} vuxna</div>` : ''}
+            ${typeof r.familyChildren !== "undefined" ? `<div class="contact-card-line"><b>Familj:</b> ${intText(r.familyChildren)} barn / ${intText(r.familyAdults)} vuxna</div>` : ''}
             ${r.otherInfo ? `<div class="contact-card-line"><b>Övrig info:</b> ${escapeHtml(r.otherInfo)}</div>` : ''}
             <div class="edit-actions">
               <button class="rowbtn no-print contact-edit-btn">Ändra</button>
-              <button class="rowbtn no-print" data-contact-remove="${r.id}">Ta bort</button>
+              <button class="rowbtn no-print" data-contact-remove="${escapeHtml(r.id)}">Ta bort</button>
             </div>
           </div>`;
         }).join("")
@@ -1479,8 +1782,8 @@ function contactEditFormHtml(r){
       <label>Barnets telefon<input type="tel" class="ef-childphone" value="${escapeHtml(r.childPhone || '')}"></label>
       <label>Övrig info<input type="text" class="ef-otherinfo" value="${escapeHtml(r.otherInfo || '')}"></label>
       ${typeof r.familyChildren !== "undefined" ? `
-      <label>Familj: barn<input type="number" min="0" class="ef-familychildren" value="${r.familyChildren}"></label>
-      <label>Familj: vuxna<input type="number" min="0" class="ef-familyadults" value="${r.familyAdults}"></label>` : ''}
+      <label>Familj: barn<input type="number" min="0" class="ef-familychildren" value="${intText(r.familyChildren)}"></label>
+      <label>Familj: vuxna<input type="number" min="0" class="ef-familyadults" value="${intText(r.familyAdults)}"></label>` : ''}
     </div>
     <div class="edit-actions">
       <button class="btn small ef-save-btn">Spara</button>
@@ -1615,6 +1918,192 @@ document.getElementById("exportFritidsWordBtn").addEventListener("click", () => 
       <tbody>${rows}</tbody>
     </table>`;
   exportHtmlToWord("fritidslista.doc", "Fritidslista", body);
+});
+
+/* ---------- Export till Excel ---------- */
+// Skapar en .xlsx med tre blad: Deltagare (all info), Aktiviteter (platser)
+// och Placeringar (en rad per barn och aktivitet, lätt att filtrera per aktivitet).
+
+function registrationStatus(r){
+  const placed = placedIds(r).length;
+  const reserve = reserveIds(r).length;
+  if(placed && reserve) return "Placerad + reserv";
+  if(placed) return "Placerad";
+  if(reserve) return "Reserv";
+  return "Väntande";
+}
+
+function homeCell(v){
+  if(v === false) return { v: "Nej – ska hämtas", warn: true };
+  if(v === true) return "Ja";
+  return "Okänt";
+}
+
+function stadiumLabelsFor(a){
+  return actStadiums(a).map(id => {
+    const st = STADIUMS.find(x => x.id === id);
+    return st ? st.label : id;
+  }).join(", ");
+}
+
+function byGradeClassName(a, b){
+  return (gradeSortValue(a.grade) - gradeSortValue(b.grade))
+    || String(a.klass || "").localeCompare(String(b.klass || ""), "sv")
+    || String(a.childName || "").localeCompare(String(b.childName || ""), "sv");
+}
+
+function buildExportSheets(){
+  const branch = currentBranch;
+  const allActs = sortByDay(acts(branch));
+  const allRegs = regs(branch).slice().sort(byGradeClassName);
+  const names = ids => ids.map(id => activityNameWithSchedule(branch, id)).join("; ");
+
+  const deltagare = {
+    name: "Deltagare",
+    columns: [
+      { header: "Barn", width: 26 },
+      { header: "Kön", width: 9 },
+      { header: "Skola", width: 16 },
+      { header: "Årskurs", width: 9 },
+      { header: "Klass", width: 8 },
+      { header: "Går på fritids", width: 12 },
+      { header: "Går hem själv", width: 17 },
+      { header: "Förälder", width: 24 },
+      { header: "Förälders telefon", width: 17 },
+      { header: "Barnets telefon", width: 16 },
+      { header: "Kontaktat förälder", width: 13 },
+      { header: "Status", width: 17 },
+      { header: "Placerad i", width: 42, wrap: true },
+      { header: "Reserv för", width: 30, wrap: true },
+      { header: "Önskade aktiviteter", width: 42, wrap: true },
+      { header: "Familj: barn", width: 11, type: "number" },
+      { header: "Familj: vuxna", width: 11, type: "number" },
+      { header: "Övrig info", width: 40, wrap: true },
+      { header: "Anmäld", width: 12, type: "date" }
+    ],
+    rows: allRegs.map(r => [
+      r.childName || "",
+      r.gender || "",
+      r.school || "",
+      String(r.grade == null ? "" : r.grade),
+      r.klass || "",
+      r.attendsFritids ? "Ja" : "Nej",
+      homeCell(r.goesHomeAlone),
+      r.parentName || "",
+      r.parentPhone || "",
+      r.childPhone || "",
+      r.parentContacted ? "Ja" : "Nej",
+      registrationStatus(r),
+      names(placedIds(r)),
+      names(reserveIds(r)),
+      names(wishIds(r)),
+      typeof r.familyChildren === "number" ? r.familyChildren : null,
+      typeof r.familyAdults === "number" ? r.familyAdults : null,
+      r.otherInfo || "",
+      r.ts ? new Date(r.ts) : null
+    ])
+  };
+
+  const aktiviteter = {
+    name: "Aktiviteter",
+    columns: [
+      { header: "Aktivitet", width: 30 },
+      { header: "Tid", width: 24 },
+      { header: "Grupper", width: 28 },
+      { header: "Skola", width: 24 },
+      { header: "Max platser (tomt = obegränsat)", width: 18, type: "number" },
+      { header: "Placerade", width: 11, type: "number" },
+      { header: "Lediga platser", width: 13, type: "number" },
+      { header: "I reserv", width: 10, type: "number" }
+    ],
+    rows: allActs.map(a => {
+      const placed = realPlacedCountFor(branch, a.id);
+      const reserve = allRegs.filter(r => reserveIds(r).includes(a.id)).length;
+      return [
+        a.name || "",
+        a.schedule || "",
+        stadiumLabelsFor(a),
+        (a.schools && a.schools.length) ? a.schools.join(", ") : "Alla skolor",
+        a.maxSpots || null,
+        placed,
+        a.maxSpots ? Math.max(0, a.maxSpots - placed) : null,
+        reserve
+      ];
+    })
+  };
+
+  const placeringar = {
+    name: "Placeringar",
+    columns: [
+      { header: "Aktivitet", width: 28 },
+      { header: "Tid", width: 22 },
+      { header: "Status", width: 11 },
+      { header: "Barn", width: 26 },
+      { header: "Årskurs", width: 9 },
+      { header: "Klass", width: 8 },
+      { header: "Skola", width: 16 },
+      { header: "Går på fritids", width: 12 },
+      { header: "Går hem själv", width: 17 },
+      { header: "Förälder", width: 24 },
+      { header: "Förälders telefon", width: 17 },
+      { header: "Kontaktat förälder", width: 13 }
+    ],
+    rows: []
+  };
+  allActs.forEach(a => {
+    const line = (r, status) => [
+      a.name || "", a.schedule || "", status, r.childName || "", String(r.grade == null ? "" : r.grade),
+      r.klass || "", r.school || "", r.attendsFritids ? "Ja" : "Nej", homeCell(r.goesHomeAlone),
+      r.parentName || "", r.parentPhone || "", r.parentContacted ? "Ja" : "Nej"
+    ];
+    allRegs.filter(r => placedIds(r).includes(a.id)).forEach(r => placeringar.rows.push(line(r, "Placerad")));
+    allRegs.filter(r => reserveIds(r).includes(a.id)).sort((x, y) => x.ts - y.ts)
+      .forEach(r => placeringar.rows.push(line(r, "Reserv")));
+  });
+
+  return [deltagare, aktiviteter, placeringar];
+}
+
+function exportFilename(){
+  const slug = branchInfo(currentBranch).name
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const d = new Date();
+  const date = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  return `Deltagare_${slug}_${date}.xlsx`;
+}
+
+const exportExcelBtn = document.getElementById("exportExcelBtn");
+exportExcelBtn.addEventListener("click", async () => {
+  if(!regs(currentBranch).length && !acts(currentBranch).length){
+    alert("Det finns inget att exportera än.");
+    return;
+  }
+  const label = exportExcelBtn.textContent;
+  exportExcelBtn.disabled = true;
+  exportExcelBtn.textContent = "⏳ Skapar Excel…";
+  try{
+    const sheets = buildExportSheets();
+    const bytes = await buildXlsx(sheets, {
+      title: "Deltagare – " + branchInfo(currentBranch).name,
+      creator: "Allaktivitetshuset"
+    });
+    const url = URL.createObjectURL(new Blob([bytes], { type: XLSX_MIME }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = exportFilename();
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast(`✓ Excelfilen skapades (${sheets[0].rows.length} deltagare, ${sheets[1].rows.length} aktiviteter)`);
+  }catch(e){
+    console.error(e);
+    alert("Kunde inte skapa Excel-filen. Försök igen.");
+  }finally{
+    exportExcelBtn.disabled = false;
+    exportExcelBtn.textContent = label;
+  }
 });
 
 /* ---------- Veckans kompis ---------- */
@@ -2146,6 +2635,32 @@ function initSubTabs(){
     });
   });
 }
+
+/* ---------- Stäng "Mer"-menyn i deltagarraden vid klick utanför ---------- */
+
+document.addEventListener("click", (e) => {
+  if(!e.target.closest(".row-menu-cell")){
+    document.querySelectorAll(".row-menu-panel").forEach(p => p.classList.remove("open"));
+  }
+});
+
+// Menyn är "fixed" så den inte klipps av tabellens scrollyta. Placeras under
+// knappen, eller ovanför om det inte finns plats nedanför.
+function positionRowMenu(btn, panel){
+  const r = btn.getBoundingClientRect();
+  const pw = panel.offsetWidth;
+  const ph = panel.offsetHeight;
+  let left = Math.min(Math.max(8, r.right - pw), window.innerWidth - pw - 8);
+  let top = r.bottom + 6;
+  if(top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+  panel.style.left = left + "px";
+  panel.style.top = top + "px";
+}
+function closeRowMenus(){
+  document.querySelectorAll(".row-menu-panel.open").forEach(p => p.classList.remove("open"));
+}
+window.addEventListener("scroll", closeRowMenus, true);
+window.addEventListener("resize", closeRowMenus);
 
 /* ---------- Dra för att scrolla i sidled (tabeller) ---------- */
 // Gör det möjligt att klicka och dra var som helst på en rad för att scrolla
