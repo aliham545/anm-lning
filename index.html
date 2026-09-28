@@ -227,11 +227,15 @@
           <div class="adm-topbar" style="margin-bottom:4px;">
             <h3 class="sectionTitle" style="margin:0;">👥 Deltagare &amp; kontaktuppgifter</h3>
             <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="rowbtn" id="printListBtn">🖨️ Skriv ut</button>
+              <button class="rowbtn tool-btn" id="exportExcelBtn" type="button">📊 Exportera till Excel</button>
+              <button class="rowbtn tool-btn" id="printListBtn">🖨️ Skriv ut</button>
               <button class="rowbtn" id="clearRegsBtn">🗑️ Rensa alla anmälningar</button>
             </div>
           </div>
           <p class="sub">Alla anmälda, uppdelade per årskursgrupp. Sök eller ring direkt via telefonnumret.</p>
+
+          <button class="btn small" id="newParticipantToggleBtn" type="button">➕ Lägg till deltagare</button>
+
           <input type="text" id="contactSearch" placeholder="Sök på namn eller klass...">
           <div id="deltagarlista"></div>
         </div>
@@ -240,8 +244,8 @@
           <div class="adm-topbar" style="margin-bottom:4px;">
             <h3 class="sectionTitle" style="margin:0;">🏠 Fritidslista</h3>
             <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="rowbtn" id="printFritidsBtn">🖨️ Skriv ut</button>
-              <button class="rowbtn" id="exportFritidsWordBtn">📄 Exportera till Word</button>
+              <button class="rowbtn tool-btn" id="printFritidsBtn">🖨️ Skriv ut</button>
+              <button class="rowbtn tool-btn" id="exportFritidsWordBtn">📄 Exportera till Word</button>
             </div>
           </div>
           <p class="sub">Bara de barn som är markerade "Går på fritids" — för utskrift eller export till ett Word-dokument.</p>
@@ -255,7 +259,7 @@
         <div class="card adm-section" id="statsWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
             <h3 class="sectionTitle" style="margin:0;">📊 Statistik</h3>
-            <button class="rowbtn" id="printStatsBtn" style="margin-left:auto;">🖨️ Skriv ut</button>
+            <button class="rowbtn tool-btn" id="printStatsBtn" style="margin-left:auto;">🖨️ Skriv ut</button>
           </div>
           <p class="sub">Fyll i antal deltagare per aktivitet/tillfälle. Du kan skriva in aktiviteter som inte finns som en aktuell aktivitet.</p>
           <div class="toolbar">
@@ -307,8 +311,8 @@
           <div class="adm-topbar no-print" style="margin-bottom:4px;">
             <h3 class="sectionTitle" style="margin:0;">🕐 Schema</h3>
             <div style="margin-left:auto;display:flex;gap:10px;">
-              <button class="rowbtn" id="printScheduleBtn">🖨️ Skriv ut</button>
-              <button class="rowbtn" id="importScheduleBtn">📥 Importera exempel-schema</button>
+              <button class="rowbtn tool-btn" id="printScheduleBtn">🖨️ Skriv ut</button>
+              <button class="rowbtn tool-btn" id="importScheduleBtn">📥 Importera exempel-schema</button>
             </div>
           </div>
           <h3 class="printTitle">Schema</h3>
@@ -364,6 +368,115 @@
           <div id="scheduleBoard"></div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="npModal">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="npTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="npTitle">➕ Lägg till deltagare</h3>
+        <p class="modal-sub" id="npSub">Samma uppgifter som föräldrarna fyller i vid anmälan.</p>
+      </div>
+      <button type="button" class="modal-close" id="np-close-btn" aria-label="Stäng">✕</button>
+    </div>
+
+    <div class="modal-body pf-form">
+      <div class="pf-grid">
+        <div class="pf-field pf-c6">
+          <label for="np-name">Barnets namn *</label>
+          <input type="text" id="np-name" placeholder="Förnamn Efternamn" autocomplete="off">
+        </div>
+
+        <div class="pf-field pf-c3">
+          <label>Kön *</label>
+          <div class="pf-radio-row" id="np-gender">
+            <label><input type="radio" name="npgender" value="Flicka"> Flicka</label>
+            <label><input type="radio" name="npgender" value="Pojke"> Pojke</label>
+            <label><input type="radio" name="npgender" value="Annat"> Annat</label>
+          </div>
+        </div>
+
+        <div class="pf-field pf-c3">
+          <label>Får barnet gå hem själv? *</label>
+          <div class="pf-radio-row" id="np-gohome">
+            <label><input type="radio" name="npgohome" value="ja"> Ja</label>
+            <label><input type="radio" name="npgohome" value="nej"> Nej, ska hämtas</label>
+          </div>
+        </div>
+
+        <div class="pf-field pf-c2">
+          <label for="np-school">Skola *</label>
+          <select id="np-school"></select>
+        </div>
+
+        <div class="pf-field pf-c2 pf-pair">
+          <label for="np-grade">Årskurs *</label>
+          <select id="np-grade">
+            <option value="">Välj årskurs</option>
+            <option value="F">Förskoleklass</option>
+            <option value="1">Årskurs 1</option>
+            <option value="2">Årskurs 2</option>
+            <option value="3">Årskurs 3</option>
+            <option value="4">Årskurs 4</option>
+            <option value="5">Årskurs 5</option>
+            <option value="6">Årskurs 6</option>
+            <option value="7">Årskurs 7</option>
+            <option value="8">Årskurs 8</option>
+            <option value="9">Årskurs 9</option>
+          </select>
+        </div>
+
+        <div class="pf-field pf-c2 pf-pair">
+          <label for="np-class">Klass *</label>
+          <input type="text" id="np-class" placeholder="t.ex. 5B" autocomplete="off">
+        </div>
+
+        <label class="pf-checkbox-row pf-c6"><input type="checkbox" id="np-fritids"> Barnet går på fritids</label>
+
+        <div class="pf-field pf-c2">
+          <label for="np-parentname">Förälders namn *</label>
+          <input type="text" id="np-parentname" placeholder="Förnamn Efternamn" autocomplete="off">
+        </div>
+
+        <div class="pf-field pf-c2">
+          <label for="np-parentphone">Förälders telefon *</label>
+          <input type="tel" id="np-parentphone" placeholder="07X-XXX XX XX" autocomplete="off">
+        </div>
+
+        <div class="pf-field pf-c2">
+          <label for="np-childphone">Barnets telefon <span class="optional">(valfritt)</span></label>
+          <input type="tel" id="np-childphone" placeholder="07X-XXX XX XX" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="pf-section-head"><span class="pf-activities-label">Placera i aktiviteter</span><span class="pf-section-hint">Valfritt – utan aktivitet hamnar barnet under Väntande ansökningar.</span></div>
+      <div class="pf-activities" id="np-activities"></div>
+
+      <div class="pf-family-fields" id="np-family-fields">
+        <div class="pf-field">
+          <label for="np-family-children">Antal barn som kommer *</label>
+          <input type="number" min="0" id="np-family-children" placeholder="0">
+        </div>
+        <div class="pf-field">
+          <label for="np-family-adults">Antal vuxna som kommer *</label>
+          <input type="number" min="0" id="np-family-adults" placeholder="0">
+        </div>
+      </div>
+
+      <div class="pf-field pf-otherinfo">
+        <label for="np-other">Övrig information <span class="optional">(valfritt, t.ex. allergier)</span></label>
+        <textarea id="np-other" rows="2"></textarea>
+      </div>
+
+    </div>
+
+    <div class="modal-foot">
+      <p class="err modal-err" id="newParticipant-err"></p>
+      <button class="ghostlink" id="np-cancel-btn" type="button">Avbryt</button>
+      <button class="btn secondary" id="np-save-more-btn" type="button">Spara &amp; lägg till en till</button>
+      <button class="btn" id="np-save-btn" type="button">Spara deltagare</button>
     </div>
   </div>
 </div>
