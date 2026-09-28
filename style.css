@@ -469,8 +469,9 @@ td a:hover{text-decoration:underline;}
 .empty{padding:16px;color:var(--text-soft);font-size:13px;text-align:center;}
 
 .inline-add{
-  display:flex;gap:8px;padding:12px 16px;background:#fff;border-top:1px solid var(--blue-pale);flex-wrap:wrap;
+  display:none;gap:8px;padding:12px 16px;background:#fff;border-top:1px solid var(--blue-pale);flex-wrap:wrap;
 }
+.inline-add.open{display:flex;}
 
 .inline-add input{flex:1;min-width:120px;}
 .inline-add button{width:auto;margin-top:0;padding:11px 16px;}
@@ -1091,3 +1092,385 @@ div.field-error{
 
 .accent-pending{border-left:5px solid var(--blue);}
 .accent-reserve{border-left:5px solid var(--accent);}
+
+/* ---------- Kompakt info-rad på aktivitetskort (tid/skola/platser) ---------- */
+
+.adm-act-meta{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:10px 16px;
+  background:var(--blue-pale);
+  border-bottom:1px solid var(--line);
+  font-size:13px;
+}
+.meta-item{display:inline-flex;align-items:center;gap:6px;}
+.meta-value{color:var(--navy);font-weight:600;white-space:nowrap;}
+.meta-sep{color:var(--line);}
+.meta-edit{
+  background:none;
+  border:none;
+  color:var(--blue);
+  font-size:11px;
+  font-weight:700;
+  text-decoration:underline;
+  cursor:pointer;
+  padding:2px 4px;
+  white-space:nowrap;
+}
+.meta-edit:hover{color:var(--blue-hover);}
+
+/* ---------- Deltagarrad: kompakt "mer"-meny istället för stora knappar ---------- */
+
+.row-menu-cell{position:relative;text-align:right;}
+.row-menu-toggle{
+  font-size:12px;
+  padding:5px 10px;
+}
+.row-menu-panel{
+  display:none;
+  position:fixed;
+  left:0;
+  top:0;
+  z-index:200;
+  background:#fff;
+  border:1.5px solid var(--line);
+  border-radius:10px;
+  box-shadow:0 8px 20px rgba(18,49,79,0.15);
+  padding:10px;
+  flex-direction:column;
+  gap:8px;
+  min-width:220px;
+  text-align:left;
+}
+.row-menu-panel.open{display:flex;}
+.row-menu-move{display:flex;gap:6px;align-items:center;}
+.row-menu-move .move-act-select{flex:1;margin:0;max-width:none;}
+.row-menu-panel .rowbtn{
+  text-align:left;
+  padding:6px 4px;
+  border-radius:6px;
+}
+.row-menu-panel .rowbtn:hover{background:var(--blue-pale);}
+.row-menu-panel .danger-text{color:var(--danger);}
+.row-menu-panel .danger-text:hover{background:var(--danger-light);}
+
+/* ---------- Kompaktare deltagartabell ---------- */
+
+.adm-act table td, .adm-act table th{padding:8px 14px;}
+.adm-act table tr:nth-child(even) td{background:#FAFCFE;}
+
+/* ---------- Kompakt deltagarrad (namn+klass, förälder+telefon ihopslaget) ---------- */
+
+.roster-primary{font-weight:700;color:var(--navy);font-size:14px;}
+.roster-sub{font-size:12px;color:var(--text-soft);margin-top:2px;}
+.roster-sub a{font-size:12px;}
+.roster-center{text-align:center;}
+.mini-badge{font-size:12px;}
+.add-toggle-btn{display:inline-block;margin:12px 16px;}
+
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+
+.icon-toggle{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;height:32px;
+  border-radius:50%;
+  border:1.5px solid var(--line);
+  background:#fff;
+  cursor:pointer;
+  position:relative;
+  margin:0 auto;
+}
+.icon-toggle input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;}
+.icon-toggle-mark{font-size:14px;color:var(--text-soft);}
+.icon-toggle:has(input:checked){background:var(--blue);border-color:var(--blue);}
+.icon-toggle:has(input:checked) .icon-toggle-mark{color:#fff;}
+
+/* ---------- Platsindikator (stapel) ---------- */
+
+.capacity-bar{height:5px;background:var(--blue-pale);}
+.capacity-fill{height:100%;background:var(--blue);transition:width .2s ease;}
+.capacity-fill.full{background:var(--accent);}
+
+/* ---------- Heltäckande "Lägg till deltagare"-formulär (admin) ---------- */
+
+.pf-form{padding:16px;background:#fff;}
+.pf-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+  gap:12px;
+  margin-bottom:14px;
+}
+.pf-field{display:flex;flex-direction:column;gap:5px;}
+.pf-field label{font-size:12px;font-weight:700;color:var(--navy);}
+.pf-field input, .pf-field select{
+  padding:10px 12px;
+  border-radius:9px;
+  border:1.5px solid var(--line);
+  font-family:'Nunito',sans-serif;
+  font-size:14px;
+  background:var(--blue-pale);
+}
+.pf-field input:focus, .pf-field select:focus{outline:none;border-color:var(--blue);background:#fff;}
+.pf-radio-row{display:flex;gap:6px;flex-wrap:wrap;}
+.pf-radio-row label{
+  display:flex;align-items:center;gap:5px;
+  border:1.5px solid var(--line);
+  background:var(--blue-pale);
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:600;
+  color:var(--navy);
+  cursor:pointer;
+}
+.pf-radio-row label:has(input:checked){background:var(--blue-light);border-color:var(--blue);}
+.pf-checkbox-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--navy);margin-top:20px;}
+.pf-checkbox-row input{width:17px;height:17px;accent-color:var(--blue);}
+.pf-activities-label{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;display:block;}
+.pf-activities{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.pf-family-fields{display:none;border:1.5px solid var(--line);background:var(--blue-pale);border-radius:10px;padding:12px;margin-bottom:14px;}
+.pf-family-fields.show{display:grid;grid-template-columns:repeat(auto-fit, minmax(140px,1fr));gap:10px;}
+.pf-otherinfo{grid-column:1/-1;}
+.pf-otherinfo textarea{
+  width:100%;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);
+  background:var(--blue-pale);font-family:'Nunito',sans-serif;font-size:14px;resize:vertical;
+}
+.pf-actions{display:flex;gap:10px;align-items:center;}
+.pf-actions .btn{width:auto;margin:0;}
+.field-error{border-color:var(--danger) !important;background:var(--danger-light) !important;}
+
+
+/* ---------- Roster: hemgång, cell-layout, fot ---------- */
+
+.roster-cell{display:flex;flex-direction:column;gap:1px;}
+.home-badge{
+  display:inline-block;
+  font-size:12px;
+  font-weight:700;
+  padding:3px 10px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+.home-ok{background:var(--blue-light);color:var(--navy-2);}
+.home-warn{background:#FDECD2;color:#8A5A0B;border:1px solid #F4A93B;}
+.home-unknown{background:transparent;color:var(--text-soft);font-weight:600;}
+.adm-act-foot{
+  padding:12px 16px;
+  border-top:1px solid var(--blue-pale);
+  background:#fff;
+  display:flex;
+  justify-content:flex-start;
+}
+.adm-act-foot .btn{width:auto;margin:0;}
+
+/* ---------- Dialog: Lägg till deltagare ---------- */
+
+body.modal-open{overflow:hidden;}
+.modal-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  background:rgba(18,49,79,0.5);
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.modal-overlay.open{display:flex;}
+.modal-card{
+  background:#fff;
+  width:100%;
+  max-width:680px;
+  max-height:min(92vh, 900px);
+  border-radius:var(--radius);
+  box-shadow:0 20px 50px rgba(18,49,79,0.35);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.modal-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:18px 20px 12px;
+  border-bottom:1px solid var(--line);
+}
+.modal-head h3{margin:0;font-size:20px;color:var(--navy);}
+.modal-sub{margin:4px 0 0;font-size:13px;color:var(--text-soft);}
+.modal-close{
+  background:none;
+  border:none;
+  font-size:20px;
+  line-height:1;
+  color:var(--text-soft);
+  cursor:pointer;
+  padding:6px 8px;
+  border-radius:8px;
+}
+.modal-close:hover{background:var(--blue-pale);color:var(--navy);}
+.modal-body{flex:1;overflow-y:auto;padding:16px 20px;-webkit-overflow-scrolling:touch;}
+.modal-body.pf-form{padding:16px 20px;}
+.modal-foot{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  padding:12px 20px 16px;
+  border-top:1px solid var(--line);
+  background:#fff;
+}
+.modal-foot .btn{width:auto;margin:0;padding:11px 18px;}
+.btn.secondary{
+  background:#fff;
+  color:var(--blue);
+  border:1.5px solid var(--blue);
+}
+.btn.secondary:hover{background:var(--blue-pale);}
+.btn:disabled{opacity:.6;cursor:wait;}
+.pf-wide{grid-column:1/-1;}
+
+@media (max-width:680px){
+  .modal-overlay{padding:0;align-items:flex-end;}
+  .modal-card{
+    max-width:none;
+    max-height:94vh;
+    border-radius:18px 18px 0 0;
+  }
+  .modal-foot{justify-content:stretch;}
+  .modal-foot .btn{flex:1;}
+  .modal-foot .ghostlink{width:100%;text-align:center;order:3;}
+}
+
+/* ---------- Toast (kort bekräftelse) ---------- */
+
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:28px;
+  transform:translate(-50%, 20px);
+  background:var(--navy);
+  color:#fff;
+  padding:11px 20px;
+  border-radius:999px;
+  font-size:14px;
+  font-weight:700;
+  box-shadow:0 8px 24px rgba(18,49,79,0.35);
+  opacity:0;
+  transition:opacity .25s ease, transform .25s ease;
+  z-index:1100;
+  pointer-events:none;
+}
+.toast.show{opacity:1;transform:translate(-50%, 0);}
+
+
+/* ---------- Dialog: finslipning (rutnät, avstånd, färger) ---------- */
+
+/* Grundregeln för label (margin 14px 0 6px) ska inte gälla inne i formulärrutnätet */
+.pf-grid .pf-field > label,
+.pf-grid .pf-radio-row label,
+.pf-grid .pf-checkbox-row{margin:0;}
+.pf-grid .pf-checkbox-row{margin-top:2px;}
+
+.pf-grid{
+  display:grid;
+  grid-template-columns:repeat(6, minmax(0, 1fr));
+  gap:16px 14px;
+  margin-bottom:6px;
+}
+.pf-c2{grid-column:span 2;}
+.pf-c3{grid-column:span 3;}
+.pf-c6{grid-column:1 / -1;}
+
+/* Segmenterade val (Kön / Hemgång): bryts aldrig till flera rader */
+.pf-radio-row{flex-wrap:nowrap;gap:6px;}
+.pf-radio-row label{flex:1 1 auto;justify-content:center;white-space:nowrap;padding:9px 10px;}
+.pf-radio-row input{margin:0;accent-color:var(--blue);}
+
+.pf-section-head{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  margin:20px 0 10px;
+  padding-top:16px;
+  border-top:1px solid var(--line);
+}
+.pf-section-head .pf-activities-label{margin:0;font-size:14px;}
+.pf-section-hint{font-size:12px;color:var(--text-soft);}
+.pf-activities{margin-bottom:16px;}
+.pf-otherinfo{margin-top:4px;}
+.pf-otherinfo label{margin:0 0 4px;}
+
+/* Felmeddelande i den fasta sidfoten */
+.modal-foot .modal-err{
+  flex:1 1 100%;
+  margin:0 0 2px;
+  padding:8px 12px;
+  border-radius:8px;
+  background:var(--danger-light);
+  color:var(--danger);
+  font-weight:700;
+  font-size:13px;
+}
+
+/* Neutrala val ska inte vara röda – bara borttagning av hel deltagare */
+.row-menu-toggle{color:var(--navy);background:var(--blue-pale);border-radius:8px;padding:6px 12px;}
+.row-menu-toggle:hover{background:var(--blue-light);}
+.row-menu-panel .rowbtn{color:var(--navy);}
+.row-menu-panel .rowbtn.danger-text{
+  color:var(--danger);
+  margin-top:2px;
+  border-top:1px solid var(--line);
+  border-radius:0 0 6px 6px;
+  padding-top:10px;
+}
+.row-menu-move .rowbtn.small{color:var(--blue);}
+
+/* Toast överst så den aldrig täcker dialogens knappar */
+.toast{top:18px;bottom:auto;transform:translate(-50%, -16px);}
+.toast.show{transform:translate(-50%, 0);}
+
+@media (max-width:680px){
+  .pf-grid{grid-template-columns:1fr 1fr;gap:14px 12px;}
+  .pf-grid > *{grid-column:1 / -1;}
+  .pf-grid > .pf-pair{grid-column:auto;}
+  /* Primär åtgärd överst, sekundär under, avbryt sist */
+  .modal-foot{flex-direction:column-reverse;align-items:stretch;gap:8px;padding:10px 16px 14px;}
+  .modal-foot .btn{width:100%;flex:none;}
+  .modal-foot .ghostlink{order:0;padding:8px;}
+  .modal-foot .modal-err{order:9;}
+  .modal-body.pf-form{padding:14px 16px;}
+}
+
+@media (max-width:680px){
+  .adm-act table tr:nth-child(even) td{background:transparent;}
+}
+
+
+/* ---------- Verktygsknappar (Skriv ut / Exportera) – neutrala, inte röda ---------- */
+
+.rowbtn.tool-btn{
+  color:var(--navy);
+  background:#fff;
+  border:1.5px solid var(--line);
+  border-radius:8px;
+  padding:7px 12px;
+  font-size:13px;
+  transition:border-color .15s ease, background .15s ease;
+}
+.rowbtn.tool-btn:hover{border-color:var(--blue);background:var(--blue-pale);color:var(--blue-hover);}
+.rowbtn.tool-btn:disabled{opacity:.6;cursor:wait;}
+
+
+/* ---------- Fritids Ja/Nej i aktiviteternas deltagarlistor ---------- */
+
+.fritids-yes{background:var(--blue-light);color:var(--navy-2);}
+.fritids-no{background:transparent;color:var(--text-soft);font-weight:600;}
