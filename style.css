@@ -1,4 +1,6 @@
 :root{
+  --font-body:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display:'Baloo 2', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --navy:#12314F;
   --navy-2:#1B4472;
   --blue:#2F63D9;
@@ -11,7 +13,7 @@
   --text:#12283F;
   --text-soft:#4E6480;
   --accent:#F4A93B;
-  --danger:#D9483A;
+  --danger:#B93226;
   --danger-light:#FBE6E3;
   --radius:16px;
 }
@@ -20,13 +22,13 @@
 
 body{
   margin:0;
-  font-family:'Nunito',sans-serif;
+  font-family:var(--font-body);
   background:var(--page);
   color:var(--text);
   min-height:100vh;
 }
 
-h1,h2,h3,.brand,.tabbtn,.btn,.stub-title{font-family:'Baloo 2',sans-serif;}
+h1,h2,h3,.brand,.tabbtn,.btn,.stub-title{font-family:var(--font-display);}
 
 header{
   background:linear-gradient(180deg, var(--navy) 0%, var(--navy-2) 100%);
@@ -62,8 +64,8 @@ header .brand{
   flex-wrap:wrap;
 }
 .logo-mark-small{height:26px;width:auto;filter:brightness(0) invert(1);}
-.logo-text-name{font-family:'Baloo 2',sans-serif;font-weight:700;font-size:19px;letter-spacing:0.5px;color:#fff;}
-.logo-text-branch{font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;letter-spacing:1px;color:var(--accent);border:1.5px solid var(--accent);border-radius:999px;padding:2px 10px;}
+.logo-text-name{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:0.5px;color:#fff;}
+.logo-text-branch{font-family:var(--font-body);font-weight:700;font-size:12px;letter-spacing:1px;color:var(--accent);border:1.5px solid var(--accent);border-radius:999px;padding:2px 10px;}
 
 .branch-switch{
   display:none;
@@ -161,12 +163,12 @@ label{
   margin:14px 0 6px;
 }
 
-input[type=text],select,textarea,input[type=password],input[type=number]{
+input[type=text],input[type=tel],input[type=email],input[type=date],input[type=search],select,textarea,input[type=password],input[type=number]{
   width:100%;
   padding:11px 12px;
   border-radius:10px;
   border:1.5px solid var(--line);
-  font-family:'Nunito',sans-serif;
+  font-family:var(--font-body);
   font-size:15px;
   background:var(--blue-pale);
   color:var(--text);
@@ -227,14 +229,14 @@ input:focus,select:focus,textarea:focus{
 .branch-group{margin-bottom:26px;}
 .branch-group:last-child{margin-bottom:0;}
 .branch-heading{
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-size:17px;
   color:var(--navy);
   margin:0 0 12px;
 }
 
 .stadium-heading{
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-size:14px;
   color:var(--navy);
   margin:0 0 10px;
@@ -299,8 +301,8 @@ input:focus,select:focus,textarea:focus{
   opacity:0.25;
   filter:brightness(0) invert(1);
 }
-.ticket-title{font-family:'Baloo 2',sans-serif;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:0 0 6px;}
-.ticket h3{margin:0 0 14px;font-size:22px;font-family:'Baloo 2',sans-serif;}
+.ticket-title{font-family:var(--font-display);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin:0 0 6px;}
+.ticket h3{margin:0 0 14px;font-size:22px;font-family:var(--font-display);}
 .ticket .row{display:flex;justify-content:space-between;font-size:13px;color:#CFE0F7;padding:3px 0;}
 .ticket .row b{color:#fff;font-weight:700;}
 .ticket-note{color:#BFD6F5;font-size:12px;margin:10px 0 0;line-height:1.5;}
@@ -376,7 +378,7 @@ input:focus,select:focus,textarea:focus{
   color:var(--navy);
   padding:16px 18px;
   border-radius:12px;
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-size:17px;
   font-weight:600;
   cursor:pointer;
@@ -559,7 +561,7 @@ td a:hover{text-decoration:underline;}
 /* ---------- Nya kategorier & skola ---------- */
 
 .achk-section-heading{
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-size:12px;
   font-weight:700;
   text-transform:uppercase;
@@ -574,7 +576,7 @@ textarea{
   padding:11px 12px;
   border-radius:10px;
   border:1.5px solid var(--line);
-  font-family:'Nunito',sans-serif;
+  font-family:var(--font-body);
   font-size:15px;
   background:var(--blue-pale);
   color:var(--text);
@@ -594,10 +596,6 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
   body.printing-stats *{visibility:hidden;}
   body.printing-stats #statsPrintArea, body.printing-stats #statsPrintArea *{visibility:visible;}
   body.printing-stats #statsPrintArea{position:absolute;left:0;top:0;width:100%;display:block;}
-
-  body.printing-schedule *{visibility:hidden;}
-  body.printing-schedule #scheduleWrap, body.printing-schedule #scheduleWrap *{visibility:visible;}
-  body.printing-schedule #scheduleWrap{position:absolute;left:0;top:0;width:100%;}
 
   body.printing-fritids *{visibility:hidden;}
   body.printing-fritids #fritidsPrintArea, body.printing-fritids #fritidsPrintArea *{visibility:visible;}
@@ -690,7 +688,7 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
   border-bottom:3px solid transparent;
   color:var(--text-soft);
   padding:10px 6px;
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-size:15px;
   font-weight:600;
   cursor:pointer;
@@ -716,7 +714,7 @@ textarea:focus{outline:none;border-color:var(--blue);background:#fff;}
   text-align:center;
 }
 .stat-box .num{
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-size:24px;
   font-weight:700;
   color:var(--navy);
@@ -795,7 +793,7 @@ div.field-error{
 }
 .todo-note-remove:hover{opacity:1;color:var(--danger);}
 .todo-note-title{
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-weight:700;
   color:var(--navy);
   font-size:15px;
@@ -982,28 +980,6 @@ div.field-error{
 
 /* ---------- Schema ---------- */
 
-.sched-edit-row{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:center;
-  padding:8px 0;
-}
-.sched-edit-row input, .sched-edit-row select{
-  flex:1;
-  min-width:110px;
-  padding:8px 10px;
-  font-size:13px;
-}
-.sched-edit-actions{display:flex;gap:8px;}
-.sched-edit-actions .btn.small{margin:0;}
-
-@media (max-width:680px){
-  .sched-edit-row{flex-direction:column;align-items:stretch;}
-  .sched-edit-row input, .sched-edit-row select{width:100%;}
-  .sched-edit-actions{width:100%;}
-  .sched-edit-actions .btn.small{flex:1;}
-}
 
 /* ---------- Kontaktad-kryssruta & flytta-till i roster ---------- */
 
@@ -1053,7 +1029,7 @@ div.field-error{
   font-size:13px;
   border-radius:8px;
   border:1.5px solid var(--line);
-  font-family:'Nunito',sans-serif;
+  font-family:var(--font-body);
 }
 .edit-actions{display:flex;gap:8px;margin-top:12px;}
 .edit-actions .btn.small{margin:0;}
@@ -1077,7 +1053,7 @@ div.field-error{
 }
 .overview-box:hover{border-color:var(--blue);transform:translateY(-1px);}
 .overview-box .num{
-  font-family:'Baloo 2',sans-serif;
+  font-family:var(--font-display);
   font-size:26px;
   font-weight:700;
   color:var(--navy);
@@ -1213,7 +1189,7 @@ div.field-error{
   padding:10px 12px;
   border-radius:9px;
   border:1.5px solid var(--line);
-  font-family:'Nunito',sans-serif;
+  font-family:var(--font-body);
   font-size:14px;
   background:var(--blue-pale);
 }
@@ -1240,7 +1216,7 @@ div.field-error{
 .pf-otherinfo{grid-column:1/-1;}
 .pf-otherinfo textarea{
   width:100%;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);
-  background:var(--blue-pale);font-family:'Nunito',sans-serif;font-size:14px;resize:vertical;
+  background:var(--blue-pale);font-family:var(--font-body);font-size:14px;resize:vertical;
 }
 .pf-actions{display:flex;gap:10px;align-items:center;}
 .pf-actions .btn{width:auto;margin:0;}
@@ -1474,3 +1450,185 @@ body.modal-open{overflow:hidden;}
 
 .fritids-yes{background:var(--blue-light);color:var(--navy-2);}
 .fritids-no{background:transparent;color:var(--text-soft);font-weight:600;}
+
+
+/* ---------- Felbanner, infomeddelanden, honungsfälla ---------- */
+
+.error-banner{
+  display:none;
+  position:sticky;
+  top:0;
+  z-index:1200;
+  background:var(--danger-light);
+  color:#7A1F14;
+  border-bottom:2px solid var(--danger);
+  padding:10px 16px;
+  font-size:14px;
+  font-weight:700;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  text-align:center;
+}
+.error-banner.open{display:flex;}
+.error-banner button{
+  background:none;border:none;color:inherit;font-size:16px;line-height:1;cursor:pointer;padding:4px 8px;border-radius:6px;
+}
+.error-banner button:hover{background:rgba(0,0,0,.08);}
+.info-msg{display:none;margin:8px 0 0;padding:8px 12px;border-radius:8px;background:var(--blue-light);color:var(--navy);font-size:13px;font-weight:600;}
+.info-msg.show{display:block;}
+.reset-link{display:block;margin:12px auto 0;}
+.hp-wrap{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;}
+
+
+/* ---------- Toast med knapp (Ångra) + gallringsrad ---------- */
+
+.toast.has-action{pointer-events:auto;display:flex;align-items:center;gap:14px;}
+.toast button{
+  background:transparent;
+  border:1.5px solid rgba(255,255,255,.7);
+  color:#fff;
+  border-radius:999px;
+  padding:4px 14px;
+  font-weight:700;
+  font-size:13px;
+  cursor:pointer;
+}
+.toast button:hover{background:rgba(255,255,255,.18);}
+
+.prune-row{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  font-size:13px;
+  color:var(--text-soft);
+  margin:0 0 14px;
+  padding:10px 12px;
+  background:var(--blue-pale);
+  border:1px dashed var(--line);
+  border-radius:10px;
+}
+.prune-label{font-weight:700;color:var(--navy);}
+.prune-row select{width:auto;padding:6px 10px;font-size:13px;}
+
+
+/* Flera toasts staplas under varandra istället för att läggas ovanpå varandra */
+.toast-host{
+  position:fixed;
+  top:18px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:1100;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  pointer-events:none;
+  width:max-content;
+  max-width:calc(100vw - 24px);
+}
+.toast-host .toast{position:static;left:auto;top:auto;bottom:auto;transform:translateY(-12px);}
+.toast-host .toast.show{transform:translateY(0);}
+
+
+/* ---------- Dialog: lägg till i aktivitet ---------- */
+
+.at-current{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:14px;}
+.at-current-label{font-size:12px;font-weight:700;color:var(--text-soft);margin-right:4px;}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;}
+.chip-placed{background:var(--blue-light);color:var(--navy-2);}
+.chip-reserve{background:#FDECD2;color:#8A5A0B;border:1px solid #F4A93B;}
+#atModal .pf-checkbox-row{margin:6px 0 12px;}
+
+
+/* ---------- Möjlig dubblett ---------- */
+
+.dup-badge{
+  display:inline-block;
+  background:#FDECD2;
+  color:#8A5A0B;
+  border:1px solid #F4A93B;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  padding:2px 8px;
+  margin-left:6px;
+  white-space:nowrap;
+  vertical-align:middle;
+}
+
+
+/* ---------- Roller och inställningar ---------- */
+
+.role-staff .admin-only{display:none !important;}
+.role-note{font-size:12px;font-weight:700;color:var(--blue-light);margin-right:10px;}
+.role-note:empty{display:none;}
+
+.settings-branch{margin-bottom:22px;}
+.school-list{list-style:none;margin:8px 0 12px;padding:0;display:flex;flex-direction:column;gap:6px;max-width:520px;}
+.school-list li{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:8px 12px;background:var(--blue-pale);border:1.5px solid var(--line);border-radius:10px;font-weight:600;color:var(--navy);
+}
+.school-add{align-items:flex-end;max-width:520px;}
+
+
+/* ---------- Typsnitt ----------
+   Sidan hämtar INGA typsnitt från Google (det skickar besökarnas IP-adress till tredje part).
+   Den använder de typsnitt som finns i besökarens dator/telefon. Vill ni ha Nunito och Baloo 2:
+   ladda ner dem som .woff2, lägg filerna i mappen fonts/ och ta bort kommentarstecknen runt blocket.
+
+@font-face{font-family:'Nunito';font-weight:400 800;font-style:normal;font-display:swap;src:url('fonts/nunito.woff2') format('woff2');}
+@font-face{font-family:'Baloo 2';font-weight:500 800;font-style:normal;font-display:swap;src:url('fonts/baloo-2.woff2') format('woff2');}
+*/
+
+/* ---------- Integritetsruta i anmälningsformuläret ---------- */
+
+.privacy-box{
+  margin:18px 0 6px;
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  background:var(--blue-pale);
+  font-size:13px;
+  color:var(--text);
+}
+.privacy-box summary{
+  cursor:pointer;
+  padding:11px 14px;
+  font-weight:700;
+  color:var(--navy);
+  list-style:none;
+  border-radius:12px;
+}
+.privacy-box summary::-webkit-details-marker{display:none;}
+.privacy-box summary::after{content:"▾";float:right;color:var(--text-soft);}
+.privacy-box[open] summary::after{content:"▴";}
+.privacy-body{padding:0 14px 12px;}
+.privacy-body ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;}
+.privacy-body p{margin:8px 0 0;color:var(--text-soft);}
+
+
+/* ---------- Tillgänglighet ---------- */
+
+/* Tydlig fokusram för tangentbordsanvändare (tidigare togs den bort på fält) */
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px;}
+input:focus-visible, select:focus-visible, textarea:focus-visible{outline:3px solid rgba(47,99,217,.55);outline-offset:1px;}
+.icon-toggle:has(input:focus-visible){outline:3px solid var(--blue);outline-offset:2px;}
+.radio-pill:has(input:focus-visible), .pf-radio-row label:has(input:focus-visible), .activity-check:has(input:focus-visible){
+  outline:3px solid var(--blue);outline-offset:2px;
+}
+.header :focus-visible, header :focus-visible{outline-color:#fff;}
+/* Platshållartext med tillräcklig kontrast (minst 4,5:1) */
+::placeholder{color:#5E6F86;opacity:1;}
+/* Respektera användare som vill ha mindre rörelse */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important;}
+}
+
+
+/* Sju flikar ska rymmas på en rad på dator */
+@media (min-width:681px){
+  .adm-subtabs{gap:0;}
+  .subtabbtn{font-size:14px;padding:10px 5px;}
+}
