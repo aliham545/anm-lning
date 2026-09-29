@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aktivitetsanmälan – Allaktivitetshuset</title>
 <link rel="icon" type="image/png" href="assets/logo-a.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<div id="errorBanner" class="error-banner" role="alert" aria-live="assertive">
+  <span id="errorBannerText"></span>
+  <button type="button" id="errorBannerClose" aria-label="Stäng meddelandet">✕</button>
+</div>
 
 <header>
   <img src="assets/logo-full.png" alt="Allaktivitetshuset Holma/Kroksbäck" class="logo-full" id="logoFull">
@@ -48,22 +50,22 @@
           <p class="sub">Fyll i uppgifterna. Välj årskurs, då visas de aktiviteter som passar barnet — man kan välja fler än en.</p>
           <form id="signupForm">
             <label for="s-name">Barnets namn</label>
-            <input type="text" id="s-name" placeholder="Förnamn Efternamn" autocomplete="off">
+            <input type="text" id="s-name" maxlength="100" aria-required="true" placeholder="Förnamn Efternamn" autocomplete="off">
 
-            <label>Kön</label>
-            <div class="radio-row" id="s-gender">
+            <label id="lbl-s-gender">Kön</label>
+            <div class="radio-row" id="s-gender" role="radiogroup" aria-labelledby="lbl-s-gender" aria-required="true">
               <label class="radio-pill"><input type="radio" name="gender" value="Flicka"> Flicka</label>
               <label class="radio-pill"><input type="radio" name="gender" value="Pojke"> Pojke</label>
               <label class="radio-pill"><input type="radio" name="gender" value="Annat"> Annat</label>
             </div>
 
             <label for="s-school">Skola</label>
-            <select id="s-school">
+            <select id="s-school" aria-required="true">
               <option value="">Välj skola</option>
             </select>
 
             <label for="s-grade">Årskurs</label>
-            <select id="s-grade">
+            <select id="s-grade" aria-required="true">
               <option value="">Välj årskurs</option>
               <option value="F">Förskoleklass</option>
               <option value="1">Årskurs 1</option>
@@ -78,27 +80,27 @@
             </select>
 
             <label for="s-class">Klass</label>
-            <input type="text" id="s-class" placeholder="t.ex. 5B" autocomplete="off">
+            <input type="text" id="s-class" maxlength="20" aria-required="true" placeholder="t.ex. 5B" autocomplete="off">
 
             <label class="checkbox-row"><input type="checkbox" id="s-fritids"> Barnet går på fritids</label>
 
-            <label>Får barnet gå hem själv?</label>
-            <div class="radio-row" id="s-gohome">
+            <label id="lbl-s-gohome">Får barnet gå hem själv?</label>
+            <div class="radio-row" id="s-gohome" role="radiogroup" aria-labelledby="lbl-s-gohome" aria-required="true">
               <label class="radio-pill"><input type="radio" name="gohome" value="ja"> Ja</label>
               <label class="radio-pill"><input type="radio" name="gohome" value="nej"> Nej, ska hämtas</label>
             </div>
 
             <label for="s-childphone">Barnets telefonnummer <span class="optional">(valfritt)</span></label>
-            <input type="tel" id="s-childphone" placeholder="07X-XXX XX XX" autocomplete="off">
+            <input type="tel" id="s-childphone" maxlength="30" placeholder="07X-XXX XX XX" autocomplete="off">
 
             <label for="s-parentname">Förälders namn</label>
-            <input type="text" id="s-parentname" placeholder="Förnamn Efternamn" autocomplete="off">
+            <input type="text" id="s-parentname" maxlength="100" aria-required="true" placeholder="Förnamn Efternamn" autocomplete="off">
 
             <label for="s-parentphone">Förälders telefonnummer</label>
-            <input type="tel" id="s-parentphone" placeholder="07X-XXX XX XX" autocomplete="off">
+            <input type="tel" id="s-parentphone" maxlength="30" aria-required="true" placeholder="07X-XXX XX XX" autocomplete="off">
 
-            <label>Önskade aktiviteter</label>
-            <div id="s-activities" class="activity-checks">
+            <label id="lbl-s-activities">Önskade aktiviteter</label>
+            <div id="s-activities" class="activity-checks" role="group" aria-labelledby="lbl-s-activities">
               <p class="muted">Välj årskurs först</p>
             </div>
 
@@ -110,9 +112,15 @@
             </div>
 
             <label for="s-other">Övrig information <span class="optional">(valfritt, t.ex. allergier)</span></label>
-            <textarea id="s-other" rows="3" placeholder="Skriv här om det är något vi bör veta..."></textarea>
+            <textarea id="s-other" maxlength="1000" rows="3" placeholder="Skriv här om det är något vi bör veta..."></textarea>
 
-            <p class="err" id="s-err"></p>
+            <div id="privacyNotice"></div>
+
+            <div class="hp-wrap" aria-hidden="true">
+              <label>Lämna detta fält tomt<input type="text" id="s-hp" name="hp_check" tabindex="-1" autocomplete="off"></label>
+            </div>
+
+            <p class="err" id="s-err" role="alert"></p>
             <button type="submit" class="btn">Skicka ansökan</button>
           </form>
           <div id="ticketHolder"></div>
@@ -135,30 +143,33 @@
       <input type="email" id="admEmail" placeholder="namn@exempel.se" autocomplete="username">
       <label for="admPassword">Lösenord</label>
       <input type="password" id="admPassword" placeholder="Lösenord" autocomplete="current-password">
-      <p class="err" id="pw-err"></p>
+      <p class="err" id="pw-err" role="alert"></p>
+      <p class="info-msg" id="pw-info" role="status"></p>
       <button class="btn" id="pwBtn">Logga in</button>
+      <button type="button" class="ghostlink reset-link" id="pwResetBtn">Glömt lösenord?</button>
     </div>
 
     <div id="adminPanel" style="display:none;">
       <div class="adm-topbar">
         <h2 style="margin:0;">Adminpanel <span class="muted" id="adminBranchLabel"></span></h2>
+        <span class="role-note" id="roleNote"></span>
         <button class="logout" id="logoutBtn">Logga ut</button>
       </div>
 
       <div class="adm-subtabs">
-        <button class="subtabbtn active" data-subtab="activities"><span class="subtab-icon">📋</span> Aktiviteter</button>
-        <button class="subtabbtn" data-subtab="buddies"><span class="subtab-icon">⭐</span> Veckans kompis</button>
-        <button class="subtabbtn" data-subtab="participants"><span class="subtab-icon">👥</span> Deltagare</button>
-        <button class="subtabbtn" data-subtab="stats"><span class="subtab-icon">📊</span> Statistik</button>
-        <button class="subtabbtn" data-subtab="todo"><span class="subtab-icon">✅</span> Att göra</button>
-        <button class="subtabbtn" data-subtab="schedule"><span class="subtab-icon">🕐</span> Schema</button>
+        <button class="subtabbtn active" data-subtab="activities"><span class="subtab-icon" aria-hidden="true">📋</span> Aktiviteter</button>
+        <button class="subtabbtn" data-subtab="buddies"><span class="subtab-icon" aria-hidden="true">⭐</span> Veckans kompis</button>
+        <button class="subtabbtn" data-subtab="participants"><span class="subtab-icon" aria-hidden="true">👥</span> Deltagare</button>
+        <button class="subtabbtn" data-subtab="stats"><span class="subtab-icon" aria-hidden="true">📊</span> Statistik</button>
+        <button class="subtabbtn" data-subtab="todo"><span class="subtab-icon" aria-hidden="true">✅</span> Att göra</button>
+        <button class="subtabbtn admin-only" data-subtab="settings"><span class="subtab-icon" aria-hidden="true">⚙️</span> Inställningar</button>
       </div>
 
       <div id="adminOverview" class="admin-overview"></div>
 
       <div id="adm-sub-activities" class="adm-subview active">
         <div class="card adm-section">
-          <h3 class="sectionTitle">➕ Lägg till aktivitet</h3>
+          <h3 class="sectionTitle"><span aria-hidden="true">➕</span> Lägg till aktivitet</h3>
           <p class="sub">Skapa en ny aktivitet. Välj en eller flera grupper den passar för.</p>
           <div class="toolbar">
             <div class="field">
@@ -173,10 +184,10 @@
               <label>Max platser</label>
               <input type="number" id="newActMax" placeholder="valfritt" min="1">
             </div>
-            <button class="btn small" id="addActBtn">➕ Lägg till</button>
+            <button class="btn small" id="addActBtn"><span aria-hidden="true">➕</span> Lägg till</button>
           </div>
-          <label>Grupper (välj en eller flera)</label>
-          <div class="radio-row" id="newActStadiums">
+          <label id="lbl-newActStadiums">Grupper (välj en eller flera)</label>
+          <div class="radio-row" id="newActStadiums" role="group" aria-labelledby="lbl-newActStadiums">
             <label class="radio-pill"><input type="checkbox" value="f"> Förskoleklass</label>
             <label class="radio-pill"><input type="checkbox" value="lag"> Lågstadiet</label>
             <label class="radio-pill"><input type="checkbox" value="mellan"> Mellanstadiet</label>
@@ -184,20 +195,20 @@
             <label class="radio-pill"><input type="checkbox" value="utflykt"> Utflykter</label>
             <label class="radio-pill"><input type="checkbox" value="familj"> Familjeaktivitet</label>
           </div>
-          <label>Skola <span class="optional">(lämna tomt = alla skolor på avdelningen)</span></label>
-          <div class="radio-row" id="newActSchools"></div>
+          <label id="lbl-newActSchools">Skola <span class="optional">(lämna tomt = alla skolor på avdelningen)</span></label>
+          <div class="radio-row" id="newActSchools" role="group" aria-labelledby="lbl-newActSchools"></div>
           <p class="err" id="newAct-err"></p>
         </div>
 
         <div class="card adm-section accent-pending" id="pendingWrap">
-          <h3 class="sectionTitle">🔵 Väntande ansökningar <span class="muted" id="pendingCount"></span></h3>
+          <h3 class="sectionTitle"><span aria-hidden="true">🔵</span> Väntande ansökningar <span class="muted" id="pendingCount"></span></h3>
           <p class="sub">Här hamnar alla som skickat in en ansökan. Placera dem i en aktivitet — är den full hamnar de automatiskt i reservlistan istället.</p>
           <input type="text" id="pendingSearch" placeholder="Sök på namn eller klass...">
           <div id="pendingApps"></div>
         </div>
 
         <div class="card adm-section accent-reserve" id="reserveWrap">
-          <h3 class="sectionTitle">🟠 Reservlista <span class="muted" id="reserveCount"></span></h3>
+          <h3 class="sectionTitle"><span aria-hidden="true">🟠</span> Reservlista <span class="muted" id="reserveCount"></span></h3>
           <p class="sub">Barn som sökt till en aktivitet som var full. Placera dem så fort det finns plats.</p>
           <input type="text" id="reserveSearch" placeholder="Sök på namn eller klass...">
           <div id="reserveApps"></div>
@@ -208,14 +219,14 @@
 
       <div id="adm-sub-buddies" class="adm-subview">
         <div class="card adm-section" id="buddiesWrap">
-          <h3 class="sectionTitle">⭐ Veckans kompis</h3>
+          <h3 class="sectionTitle"><span aria-hidden="true">⭐</span> Veckans kompis</h3>
           <p class="sub">Upp till 10 ledare, varje ledare lägger till 3 "veckans kompis" per vecka: namn, anledning och föräldrarnas respons.</p>
           <div class="toolbar">
             <div class="field">
               <label>Ledarens namn</label>
               <input type="text" id="newLeaderName" placeholder="t.ex. Anna">
             </div>
-            <button class="btn small" id="addLeaderBtn">➕ Lägg till ledare</button>
+            <button class="btn small" id="addLeaderBtn"><span aria-hidden="true">➕</span> Lägg till ledare</button>
           </div>
           <p class="err" id="newLeader-err"></p>
           <div id="leadersList"></div>
@@ -225,16 +236,29 @@
       <div id="adm-sub-participants" class="adm-subview">
         <div class="card adm-section" id="deltagarlistaWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">👥 Deltagare &amp; kontaktuppgifter</h3>
+            <h3 class="sectionTitle" style="margin:0;"><span aria-hidden="true">👥</span> Deltagare &amp; kontaktuppgifter</h3>
             <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="rowbtn tool-btn" id="exportExcelBtn" type="button">📊 Exportera till Excel</button>
-              <button class="rowbtn tool-btn" id="printListBtn">🖨️ Skriv ut</button>
-              <button class="rowbtn" id="clearRegsBtn">🗑️ Rensa alla anmälningar</button>
+              <button class="rowbtn tool-btn" id="exportExcelBtn" type="button"><span aria-hidden="true">📊</span> Exportera till Excel</button>
+              <button class="rowbtn tool-btn" id="printListBtn"><span aria-hidden="true">🖨️</span> Skriv ut</button>
+              <button class="rowbtn admin-only" id="clearRegsBtn"><span aria-hidden="true">🗑️</span> Rensa alla anmälningar</button>
             </div>
           </div>
           <p class="sub">Alla anmälda, uppdelade per årskursgrupp. Sök eller ring direkt via telefonnumret.</p>
 
-          <button class="btn small" id="newParticipantToggleBtn" type="button">➕ Lägg till deltagare</button>
+          <div class="prune-row admin-only">
+            <span class="prune-label">🧹 Gallring:</span>
+            <label for="pruneMonths" class="sr-only">Radera anmälningar äldre än</label>
+            <span>radera anmälningar äldre än</span>
+            <select id="pruneMonths">
+              <option value="6">6 månader</option>
+              <option value="12" selected>12 månader</option>
+              <option value="24">24 månader</option>
+            </select>
+            <span class="muted" id="pruneInfo"></span>
+            <button class="rowbtn tool-btn" id="pruneBtn" type="button">Radera äldre</button>
+          </div>
+
+          <button class="btn small" id="newParticipantToggleBtn" type="button"><span aria-hidden="true">➕</span> Lägg till deltagare</button>
 
           <input type="text" id="contactSearch" placeholder="Sök på namn eller klass...">
           <div id="deltagarlista"></div>
@@ -242,10 +266,10 @@
 
         <div class="card adm-section" id="fritidslistaWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">🏠 Fritidslista</h3>
+            <h3 class="sectionTitle" style="margin:0;"><span aria-hidden="true">🏠</span> Fritidslista</h3>
             <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;">
-              <button class="rowbtn tool-btn" id="printFritidsBtn">🖨️ Skriv ut</button>
-              <button class="rowbtn tool-btn" id="exportFritidsWordBtn">📄 Exportera till Word</button>
+              <button class="rowbtn tool-btn" id="printFritidsBtn"><span aria-hidden="true">🖨️</span> Skriv ut</button>
+              <button class="rowbtn tool-btn" id="exportFritidsWordBtn"><span aria-hidden="true">📄</span> Exportera till Word</button>
             </div>
           </div>
           <p class="sub">Bara de barn som är markerade "Går på fritids" — för utskrift eller export till ett Word-dokument.</p>
@@ -258,8 +282,8 @@
       <div id="adm-sub-stats" class="adm-subview">
         <div class="card adm-section" id="statsWrap">
           <div class="adm-topbar" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">📊 Statistik</h3>
-            <button class="rowbtn tool-btn" id="printStatsBtn" style="margin-left:auto;">🖨️ Skriv ut</button>
+            <h3 class="sectionTitle" style="margin:0;"><span aria-hidden="true">📊</span> Statistik</h3>
+            <button class="rowbtn tool-btn" id="printStatsBtn" style="margin-left:auto;"><span aria-hidden="true">🖨️</span> Skriv ut</button>
           </div>
           <p class="sub">Fyll i antal deltagare per aktivitet/tillfälle. Du kan skriva in aktiviteter som inte finns som en aktuell aktivitet.</p>
           <div class="toolbar">
@@ -278,7 +302,7 @@
             <div class="field maxfield"><label>Flickor</label><input type="number" id="statGirls" min="0" placeholder="0"></div>
             <div class="field maxfield"><label>Kvinnor</label><input type="number" id="statWomen" min="0" placeholder="0"></div>
             <div class="field maxfield"><label>Män</label><input type="number" id="statMen" min="0" placeholder="0"></div>
-            <button class="btn small" id="addStatBtn">➕ Lägg till</button>
+            <button class="btn small" id="addStatBtn"><span aria-hidden="true">➕</span> Lägg till</button>
           </div>
           <p class="err" id="newStat-err"></p>
 
@@ -290,7 +314,7 @@
 
       <div id="adm-sub-todo" class="adm-subview">
         <div class="card adm-section" id="todoWrap">
-          <h3 class="sectionTitle">✅ Att göra</h3>
+          <h3 class="sectionTitle"><span aria-hidden="true">✅</span> Att göra</h3>
           <p class="sub">Lappar för sånt som behöver göras — lägg till en uppgift med en kort beskrivning, och ta bort den när den är klar.</p>
           <div class="toolbar">
             <div class="field">
@@ -300,74 +324,22 @@
           </div>
           <label>Beskrivning <span class="optional">(valfritt)</span></label>
           <textarea id="newTodoDesc" rows="2" placeholder="Mer detaljer..."></textarea>
-          <button class="btn small" id="addTodoBtn">➕ Lägg till lapp</button>
+          <button class="btn small" id="addTodoBtn"><span aria-hidden="true">➕</span> Lägg till lapp</button>
           <p class="err" id="newTodo-err"></p>
           <div id="todoList" class="todo-board"></div>
         </div>
       </div>
 
-      <div id="adm-sub-schedule" class="adm-subview">
-        <div class="card adm-section" id="scheduleWrap">
-          <div class="adm-topbar no-print" style="margin-bottom:4px;">
-            <h3 class="sectionTitle" style="margin:0;">🕐 Schema</h3>
-            <div style="margin-left:auto;display:flex;gap:10px;">
-              <button class="rowbtn tool-btn" id="printScheduleBtn">🖨️ Skriv ut</button>
-              <button class="rowbtn tool-btn" id="importScheduleBtn">📥 Importera exempel-schema</button>
-            </div>
-          </div>
-          <h3 class="printTitle">Schema</h3>
-          <p class="sub no-print">Personalens schema, uppdelat på FM och EM. Klicka "Ändra" på ett pass för att redigera tid, personal, sal eller annat.</p>
-
-          <div class="toolbar no-print">
-            <div class="field maxfield">
-              <label>Skola</label>
-              <select id="schedSchool"></select>
-            </div>
-            <div class="field maxfield">
-              <label>Del av dag</label>
-              <select id="schedPeriod">
-                <option value="FM">FM</option>
-                <option value="EM">EM</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Pass/aktivitet</label>
-              <input type="text" id="schedActivity" placeholder="t.ex. Frukost">
-            </div>
-            <div class="field maxfield">
-              <label>Tid</label>
-              <input type="text" id="schedTime" placeholder="07:30–08:15">
-            </div>
-          </div>
-          <div class="toolbar no-print">
-            <div class="field">
-              <label>Sal/plats</label>
-              <input type="text" id="schedLocation" placeholder="t.ex. Matsalen">
-            </div>
-            <div class="field">
-              <label>Personal</label>
-              <input type="text" id="schedStaff" placeholder="t.ex. Hoda + Zijad">
-            </div>
-            <div class="field">
-              <label>Grupp/anteckning <span class="optional">(valfritt)</span></label>
-              <input type="text" id="schedNote" placeholder="t.ex. Åk 4-6">
-            </div>
-            <button class="btn small" id="addSchedBtn">➕ Lägg till pass</button>
-          </div>
-          <p class="err no-print" id="newSched-err"></p>
-
-          <div class="toolbar no-print" style="margin-top:18px;">
-            <div class="field">
-              <label>Hitta mina tider</label>
-              <select id="schedStaffFilter">
-                <option value="">Visa alla</option>
-              </select>
-            </div>
-          </div>
-
-          <div id="scheduleBoard"></div>
+      <div id="adm-sub-settings" class="adm-subview">
+        <div class="card adm-section" id="settingsWrap">
+          <h3 class="sectionTitle"><span aria-hidden="true">⚙️</span> Inställningar</h3>
+          <p class="sub">Sådant som annars ligger i koden. Ändringar gäller direkt för alla, även på anmälningssidan.</p>
+          <h3 class="sectionTitle" style="font-size:16px;margin-top:18px;">Skolor</h3>
+          <p class="sub">Skolor som föräldrar och personal kan välja mellan. Tas en skola bort behåller befintliga anmälningar sin skola, men den går inte längre att välja.</p>
+          <div id="settingsSchools"></div>
         </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -376,7 +348,7 @@
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="npTitle">
     <div class="modal-head">
       <div>
-        <h3 id="npTitle">➕ Lägg till deltagare</h3>
+        <h3 id="npTitle"><span aria-hidden="true">➕</span> Lägg till deltagare</h3>
         <p class="modal-sub" id="npSub">Samma uppgifter som föräldrarna fyller i vid anmälan.</p>
       </div>
       <button type="button" class="modal-close" id="np-close-btn" aria-label="Stäng">✕</button>
@@ -386,12 +358,12 @@
       <div class="pf-grid">
         <div class="pf-field pf-c6">
           <label for="np-name">Barnets namn *</label>
-          <input type="text" id="np-name" placeholder="Förnamn Efternamn" autocomplete="off">
+          <input type="text" id="np-name" maxlength="100" aria-required="true" placeholder="Förnamn Efternamn" autocomplete="off">
         </div>
 
         <div class="pf-field pf-c3">
-          <label>Kön *</label>
-          <div class="pf-radio-row" id="np-gender">
+          <label id="lbl-np-gender">Kön *</label>
+          <div class="pf-radio-row" id="np-gender" role="radiogroup" aria-labelledby="lbl-np-gender" aria-required="true">
             <label><input type="radio" name="npgender" value="Flicka"> Flicka</label>
             <label><input type="radio" name="npgender" value="Pojke"> Pojke</label>
             <label><input type="radio" name="npgender" value="Annat"> Annat</label>
@@ -399,8 +371,8 @@
         </div>
 
         <div class="pf-field pf-c3">
-          <label>Får barnet gå hem själv? *</label>
-          <div class="pf-radio-row" id="np-gohome">
+          <label id="lbl-np-gohome">Får barnet gå hem själv? *</label>
+          <div class="pf-radio-row" id="np-gohome" role="radiogroup" aria-labelledby="lbl-np-gohome" aria-required="true">
             <label><input type="radio" name="npgohome" value="ja"> Ja</label>
             <label><input type="radio" name="npgohome" value="nej"> Nej, ska hämtas</label>
           </div>
@@ -408,12 +380,12 @@
 
         <div class="pf-field pf-c2">
           <label for="np-school">Skola *</label>
-          <select id="np-school"></select>
+          <select id="np-school" aria-required="true"></select>
         </div>
 
         <div class="pf-field pf-c2 pf-pair">
           <label for="np-grade">Årskurs *</label>
-          <select id="np-grade">
+          <select id="np-grade" aria-required="true">
             <option value="">Välj årskurs</option>
             <option value="F">Förskoleklass</option>
             <option value="1">Årskurs 1</option>
@@ -430,53 +402,94 @@
 
         <div class="pf-field pf-c2 pf-pair">
           <label for="np-class">Klass *</label>
-          <input type="text" id="np-class" placeholder="t.ex. 5B" autocomplete="off">
+          <input type="text" id="np-class" maxlength="20" aria-required="true" placeholder="t.ex. 5B" autocomplete="off">
         </div>
 
         <label class="pf-checkbox-row pf-c6"><input type="checkbox" id="np-fritids"> Barnet går på fritids</label>
 
         <div class="pf-field pf-c2">
           <label for="np-parentname">Förälders namn *</label>
-          <input type="text" id="np-parentname" placeholder="Förnamn Efternamn" autocomplete="off">
+          <input type="text" id="np-parentname" maxlength="100" aria-required="true" placeholder="Förnamn Efternamn" autocomplete="off">
         </div>
 
         <div class="pf-field pf-c2">
           <label for="np-parentphone">Förälders telefon *</label>
-          <input type="tel" id="np-parentphone" placeholder="07X-XXX XX XX" autocomplete="off">
+          <input type="tel" id="np-parentphone" maxlength="30" aria-required="true" placeholder="07X-XXX XX XX" autocomplete="off">
         </div>
 
         <div class="pf-field pf-c2">
           <label for="np-childphone">Barnets telefon <span class="optional">(valfritt)</span></label>
-          <input type="tel" id="np-childphone" placeholder="07X-XXX XX XX" autocomplete="off">
+          <input type="tel" id="np-childphone" maxlength="30" placeholder="07X-XXX XX XX" autocomplete="off">
         </div>
       </div>
 
-      <div class="pf-section-head"><span class="pf-activities-label">Placera i aktiviteter</span><span class="pf-section-hint">Valfritt – utan aktivitet hamnar barnet under Väntande ansökningar.</span></div>
-      <div class="pf-activities" id="np-activities"></div>
+      <div class="pf-section-head"><span class="pf-activities-label" id="lbl-np-activities">Placera i aktiviteter</span><span class="pf-section-hint">Valfritt – utan aktivitet hamnar barnet under Väntande ansökningar.</span></div>
+      <div class="pf-activities" id="np-activities" role="group" aria-labelledby="lbl-np-activities"></div>
 
       <div class="pf-family-fields" id="np-family-fields">
         <div class="pf-field">
           <label for="np-family-children">Antal barn som kommer *</label>
-          <input type="number" min="0" id="np-family-children" placeholder="0">
+          <input type="number" min="0" id="np-family-children" aria-required="true" placeholder="0">
         </div>
         <div class="pf-field">
           <label for="np-family-adults">Antal vuxna som kommer *</label>
-          <input type="number" min="0" id="np-family-adults" placeholder="0">
+          <input type="number" min="0" id="np-family-adults" aria-required="true" placeholder="0">
         </div>
       </div>
 
       <div class="pf-field pf-otherinfo">
         <label for="np-other">Övrig information <span class="optional">(valfritt, t.ex. allergier)</span></label>
-        <textarea id="np-other" rows="2"></textarea>
+        <textarea id="np-other" maxlength="1000" rows="2"></textarea>
       </div>
 
     </div>
 
     <div class="modal-foot">
-      <p class="err modal-err" id="newParticipant-err"></p>
+      <p class="err modal-err" id="newParticipant-err" role="alert"></p>
       <button class="ghostlink" id="np-cancel-btn" type="button">Avbryt</button>
       <button class="btn secondary" id="np-save-more-btn" type="button">Spara &amp; lägg till en till</button>
       <button class="btn" id="np-save-btn" type="button">Spara deltagare</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="atModal">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="atTitle">
+    <div class="modal-head">
+      <div>
+        <h3 id="atTitle"><span aria-hidden="true">➕</span> Lägg till i aktivitet</h3>
+        <p class="modal-sub" id="atSub"></p>
+      </div>
+      <button type="button" class="modal-close" id="at-close-btn" aria-label="Stäng">✕</button>
+    </div>
+
+    <div class="modal-body pf-form">
+      <div class="at-current" id="at-current"></div>
+
+      <div class="pf-section-head" style="margin-top:4px;">
+        <span class="pf-activities-label" id="lbl-at-activities">Välj aktiviteter att lägga till</span>
+        <span class="pf-section-hint">Är en aktivitet full hamnar barnet i reservlistan.</span>
+      </div>
+      <div class="pf-activities" id="at-activities" role="group" aria-labelledby="lbl-at-activities"></div>
+
+      <label class="pf-checkbox-row"><input type="checkbox" id="at-show-all"> Visa alla aktiviteter (även andra årskurser och skolor)</label>
+
+      <div class="pf-family-fields" id="at-family-fields">
+        <div class="pf-field">
+          <label for="at-family-children">Antal barn som kommer *</label>
+          <input type="number" min="0" id="at-family-children" aria-required="true" placeholder="0">
+        </div>
+        <div class="pf-field">
+          <label for="at-family-adults">Antal vuxna som kommer *</label>
+          <input type="number" min="0" id="at-family-adults" aria-required="true" placeholder="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <p class="err modal-err" id="at-err" role="alert"></p>
+      <button class="ghostlink" id="at-cancel-btn" type="button">Avbryt</button>
+      <button class="btn" id="at-save-btn" type="button">Lägg till</button>
     </div>
   </div>
 </div>
