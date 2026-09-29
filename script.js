@@ -2967,8 +2967,6 @@ window.addEventListener("resize", repositionOpenRowMenu);
   }, true);
 })();
 
-document.getElementById("privacyNotice").innerHTML = buildPrivacyHtml(PRIVACY);
-
 /* ---------- Tillgänglighet: flikar och felmarkering ---------- */
 
 // Flikarna (Anmäl dig/Admin och adminpanelens underflikar) får flikroller, aria-selected,
